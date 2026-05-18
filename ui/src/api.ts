@@ -17,12 +17,15 @@ export interface RunOptions {
 
 export interface ReportMeta {
   date: string;
+  time?: string;
   repoName: string;
   filePath: string;
 }
 
 export interface ReportContent {
   date: string;
+  time?: string;
+  repoName?: string;
   filePath: string;
   content: string;
 }
