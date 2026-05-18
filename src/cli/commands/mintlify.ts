@@ -2,7 +2,7 @@ import { execSync } from 'child_process';
 import { Command } from 'commander';
 import { loadConfig } from '../../config/loader';
 import { MintlifyDeployClient } from '../../integrations/mintlify/deploy';
-import { appendDeployRecord, listDeployRecords, filterRecordsSince } from '../../integrations/mintlify/cache';
+import { appendDeployRecord, upsertDeployRecord, listDeployRecords, filterRecordsSince } from '../../integrations/mintlify/cache';
 import { MintlifyDeployRecord, MintlifyStatusResponse } from '../../integrations/mintlify/types';
 import { GeminiProvider } from '../../llm/gemini';
 import { buildDeploymentSummaryPrompt } from '../../llm/prompts';
@@ -97,10 +97,20 @@ export function mintlifyCommand(): Command {
           const result = mode === 'preview'
             ? await client.triggerPreview(branch!)
             : await client.triggerProduction();
+          const previewUrl = (result as { previewUrl?: string }).previewUrl;
           console.log(`statusId:   ${result.statusId}`);
-          if ('previewUrl' in result && result.previewUrl) {
-            console.log(`previewUrl: ${result.previewUrl}`);
-          }
+          if (previewUrl) console.log(`previewUrl: ${previewUrl}`);
+
+          // Save a pending record immediately so it appears in history
+          upsertDeployRecord({
+            statusId: result.statusId,
+            projectId,
+            triggeredAt: new Date().toISOString(),
+            mode,
+            branch,
+            previewUrl,
+            finalStatus: 'queued',
+          });
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           console.error(`Error: ${message}`);
@@ -226,7 +236,8 @@ export function mintlifyCommand(): Command {
       }
 
       const rows = records.map((r) => ({
-        date: r.triggeredAt.split('T')[0],
+        statusId: r.statusId,
+        date: r.triggeredAt.replace('T', ' ').slice(0, 16),
         mode: r.mode,
         branch: r.branch ?? '—',
         status: r.finalStatus,
@@ -234,13 +245,15 @@ export function mintlifyCommand(): Command {
       }));
 
       const colWidths = {
-        date: Math.max(10, ...rows.map((r) => r.date.length)),
+        statusId: Math.max(8, ...rows.map((r) => r.statusId.length)),
+        date: Math.max(16, ...rows.map((r) => r.date.length)),
         mode: Math.max(4, ...rows.map((r) => r.mode.length)),
         branch: Math.max(6, ...rows.map((r) => r.branch.length)),
         status: Math.max(7, ...rows.map((r) => r.status.length)),
       };
 
       const header = [
+        'StatusId'.padEnd(colWidths.statusId),
         'Date'.padEnd(colWidths.date),
         'Mode'.padEnd(colWidths.mode),
         'Branch'.padEnd(colWidths.branch),
@@ -255,6 +268,7 @@ export function mintlifyCommand(): Command {
         const statusColour = row.status === 'success' ? GREEN : row.status === 'failure' ? RED : YELLOW;
         console.log(
           [
+            `${DIM}${row.statusId}${RESET}`.padEnd(colWidths.statusId + DIM.length + RESET.length),
             row.date.padEnd(colWidths.date),
             row.mode.padEnd(colWidths.mode),
             row.branch.padEnd(colWidths.branch),
