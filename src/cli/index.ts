@@ -1,4 +1,7 @@
 import { Command } from 'commander';
+import { runCommand } from './commands/run';
+import { exportCommand } from './commands/export';
+import { configShowCommand, configGetCommand, configSetCommand } from './commands/config';
 
 const program = new Command();
 
@@ -11,11 +14,16 @@ program
   .command('run')
   .description('Scan commits and generate a stand-up summary')
   .option('--since <duration>', 'time window, e.g. 24h, 2d, 1w', '24h')
-  .option('--branch <name>', 'git branch to scan (defaults to current branch)')
+  .option('--branch <name>', 'git branch to scan (defaults to config)')
   .option('--length <size>', 'summary length: short, medium, long', 'medium')
   .option('--no-edit', 'skip editor review and export directly')
-  .action(async (_options) => {
-    console.log('run command — not yet implemented');
+  .action(async (options) => {
+    await runCommand({
+      since: options.since,
+      branch: options.branch,
+      length: options.length,
+      edit: options.edit !== false,
+    });
   });
 
 program
@@ -23,8 +31,8 @@ program
   .description('Re-export or view the last generated report')
   .option('--date <date>', 'target a specific report by date (YYYY-MM-DD)')
   .option('--open', 'open the report in $EDITOR')
-  .action(async (_options) => {
-    console.log('export command — not yet implemented');
+  .action(async (options) => {
+    await exportCommand({ date: options.date, open: options.open });
   });
 
 const configCmd = program
@@ -33,23 +41,22 @@ const configCmd = program
 
 configCmd
   .command('show')
-  .description('Print the current merged config')
-  .action(() => {
-    console.log('config show — not yet implemented');
-  });
+  .description('Print the current merged config (API key masked)')
+  .action(() => configShowCommand());
 
 configCmd
   .command('get <key>')
   .description('Get a config value by dot-path (e.g. llm.model)')
-  .action((_key) => {
-    console.log('config get — not yet implemented');
-  });
+  .action((key) => configGetCommand(key));
 
 configCmd
   .command('set <key> <value>')
-  .description('Set a config value (e.g. llm.model gemini-2.0-flash-lite)')
-  .action((_key, _value) => {
-    console.log('config set — not yet implemented');
-  });
+  .description('Set a config value in the repo-local config')
+  .option('--global', 'write to global config instead of repo-local')
+  .action((key, value, options) => configSetCommand(key, value, options));
 
-program.parse(process.argv);
+program.parseAsync(process.argv).catch((err: unknown) => {
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(`Error: ${message}`);
+  process.exit(1);
+});
