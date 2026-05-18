@@ -4,6 +4,7 @@ import { exportCommand } from './commands/export';
 import { configShowCommand, configGetCommand, configSetCommand } from './commands/config';
 import { historyCommand } from './commands/history';
 import { scheduleCommand } from './commands/schedule';
+import { docsCommand } from './commands/docs';
 
 const program = new Command();
 
@@ -66,6 +67,24 @@ program
   .option('--last', 'open the most recent report in $EDITOR')
   .action(async (options) => {
     await historyCommand({ open: options.open, last: options.last });
+  });
+
+program
+  .command('docs')
+  .description('Detect and review documentation tasks from recent commits')
+  .option('--since <duration>', 'time window, e.g. 24h, 2d, 1w', '24h')
+  .option('--branch <name>', 'git branch to analyze')
+  .option('--no-review', 'skip interactive review and accept all detected tasks')
+  .option('--format <fmt>', 'export format: markdown, json, both', 'markdown')
+  .option('--no-llm', 'use template-based task descriptions instead of LLM')
+  .action(async (options) => {
+    await docsCommand({
+      since: options.since,
+      branch: options.branch,
+      review: options.review !== false,
+      format: options.format,
+      llm: options.llm !== false,
+    });
   });
 
 program
