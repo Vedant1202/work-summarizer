@@ -28,3 +28,16 @@ export function listDeployRecords(limit?: number): MintlifyDeployRecord[] {
   const { deployments } = readDeployCache();
   return limit ? deployments.slice(0, limit) : deployments;
 }
+
+function sinceToDate(since: string): Date {
+  const match = since.match(/^(\d+)(m|h|d|w)$/);
+  if (!match) return new Date(since);
+  const amount = parseInt(match[1], 10);
+  const ms: Record<string, number> = { m: 60_000, h: 3_600_000, d: 86_400_000, w: 604_800_000 };
+  return new Date(Date.now() - amount * ms[match[2]]);
+}
+
+export function filterRecordsSince(records: MintlifyDeployRecord[], since: string): MintlifyDeployRecord[] {
+  const cutoff = sinceToDate(since);
+  return records.filter((r) => new Date(r.triggeredAt) >= cutoff);
+}

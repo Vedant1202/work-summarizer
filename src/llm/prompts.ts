@@ -1,5 +1,6 @@
 import { SummaryLength, CommitCategory } from '../config/types';
 import { NormalizedCommit } from '../git/normalizer';
+import { MintlifyDeployRecord } from '../integrations/mintlify/types';
 
 // Category display labels (order defines section order in output)
 const CATEGORY_LABELS: Record<CommitCategory, string> = {
@@ -101,4 +102,40 @@ ${commitBlock}
 ---
 
 Write the stand-up summary now. Follow the format and rules above exactly.`;
+}
+
+export function buildDeploymentSummaryPrompt(records: MintlifyDeployRecord[]): string {
+  const deploymentBlocks = records.map((r, i) => {
+    const fc = r.filesChanged;
+    const added = fc?.added.join(', ') || 'none';
+    const modified = fc?.modified.join(', ') || 'none';
+    const removed = fc?.removed.join(', ') || 'none';
+    const sha = r.commitSha ? r.commitSha.slice(0, 7) : 'unknown';
+    const date = r.triggeredAt.replace('T', ' ').slice(0, 16);
+    const lines = [
+      `[${i + 1}] ${date} — ${r.mode} — branch: ${r.branch ?? 'unknown'}`,
+      `    Commit: ${sha} "${r.commitMessage ?? 'no message'}"`,
+      `    Files added:    ${added}`,
+      `    Files modified: ${modified}`,
+      `    Files removed:  ${removed}`,
+    ];
+    if (r.summary) lines.push(`    Mintlify summary: "${r.summary}"`);
+    return lines.join('\n');
+  });
+
+  return `You are a technical documentation assistant. Summarize the following Mintlify documentation deployments.
+
+${deploymentBlocks.join('\n\n')}
+
+---
+
+Write a concise bullet-point summary of what changed in the documentation.
+Rules:
+- Group related file changes together (e.g. all API reference changes in one bullet)
+- Name specific files or sections where possible (drop path prefixes for readability)
+- Use past tense: "Updated X", "Added Y", "Removed Z"
+- Focus on what a reader of the docs would notice, not implementation details
+- If a file was both added and linked from elsewhere, mention the new content
+- Max 8 bullets total
+- No preamble — start directly with the first bullet`;
 }
