@@ -1,9 +1,10 @@
 {
   "name": "daily-commit-summarizer",
-  "version": "0.1.1",
+  "version": "0.2.1",
   "description": "Generate daily stand-up summaries from git commits using Gemini AI",
   "type": "commonjs",
   "license": "MIT",
+  "homepage": "https://www.npmjs.com/package/daily-commit-summarizer",
   "engines": {
     "node": ">=18"
   },
@@ -19,7 +20,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/vedantnandoskar/daily-commit-summarizer.git"
+    "url": "https://github.com/Vedant1202/daily-work-summarizer.git"
+  },
+  "main": "./dist/bin/daily-summary.js",
+  "types": "./dist/bin/daily-summary.d.ts",
+  "exports": {
+    ".": "./dist/bin/daily-summary.js"
   },
   "bin": {
     "daily-summary": "./dist/bin/daily-summary.js"
@@ -29,6 +35,9 @@
     "README.md",
     "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "cd ui && npm install && npm run build && cd .. && tsc && chmod +x dist/bin/daily-summary.js",
     "build:backend": "tsc && chmod +x dist/bin/daily-summary.js",
