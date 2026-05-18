@@ -3,3 +3,8 @@
 agent-skills/
 install.sh
 claude-install.log
+.plans/
+node_modules/
+dist/
+.env
+*.daily-summary.json
