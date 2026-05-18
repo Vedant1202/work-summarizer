@@ -1,0 +1,4084 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+src/
+  bin/
+    daily-summary.ts
+  cli/
+    commands/
+      config.ts
+      docs.ts
+      doctor.ts
+      export.ts
+      history.ts
+      run.ts
+      schedule.ts
+    index.ts
+    review.ts
+  config/
+    loader.test.ts
+    loader.ts
+    types.ts
+  docs/
+    detector.ts
+    exporter.ts
+    generator.ts
+    types.ts
+  git/
+    ingestion.ts
+    normalizer.test.ts
+    normalizer.ts
+  integrations/
+    linear/
+      client.ts
+    extractor.test.ts
+    extractor.ts
+    types.ts
+  llm/
+    gemini.ts
+    prompts.ts
+  report/
+    exporter.ts
+    generator.test.ts
+    generator.ts
+    html.ts
+.env.example
+.gitignore
+.npmignore
+package.json
+README.md
+tsconfig.json
+vitest.config.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="src/bin/daily-summary.ts">
+#!/usr/bin/env node
+import '../cli/index';
+</file>
+
+<file path="src/cli/commands/doctor.ts">
+import { loadConfig } from '../../config/loader';
+import { GeminiProvider } from '../../llm/gemini';
+import { LinearIntegrationClient } from '../../integrations/linear/client';
+
+const GREEN = '\x1b[32m';
+const RED = '\x1b[31m';
+const DIM = '\x1b[2m';
+const RESET = '\x1b[0m';
+const BOLD = '\x1b[1m';
+
+function pass(label: string, detail: string): void {
+  console.log(`  ${GREEN}✓${RESET} ${label.padEnd(20)} ${DIM}${detail}${RESET}`);
+}
+
+function fail(label: string, detail: string): void {
+  console.log(`  ${RED}✗${RESET} ${label.padEnd(20)} ${DIM}${detail}${RESET}`);
+}
+
+function skip(label: string, detail: string): void {
+  console.log(`  ${DIM}-${RESET} ${label.padEnd(20)} ${DIM}${detail}${RESET}`);
+}
+
+export async function doctorCommand(): Promise<void> {
+  const config = loadConfig();
+  let allRequired = true;
+
+  console.log(`\n${BOLD}Checking configuration...${RESET}`);
+
+  const geminiKey = config.llm.apiKey;
+  if (geminiKey) {
+    pass('GEMINI_API_KEY', 'set');
+  } else {
+    fail('GEMINI_API_KEY', 'not set — run: daily-summary config init');
+    allRequired = false;
+  }
+
+  const geminiModel = config.llm.model;
+  if (geminiModel) {
+    pass('GEMINI_MODEL', geminiModel);
+  } else {
+    fail('GEMINI_MODEL', 'not set — run: daily-summary config init');
+    allRequired = false;
+  }
+
+  const linearKey = config.integrations?.linear?.apiKey;
+  if (linearKey) {
+    pass('LINEAR_API_KEY', 'set');
+  } else {
+    skip('LINEAR_API_KEY', 'not set (optional — needed for --with-linear)');
+  }
+
+  const teamId = config.integrations?.linear?.teamId;
+  if (teamId) {
+    pass('linear.teamId', teamId);
+  } else {
+    skip('linear.teamId', 'not set (optional — needed for --create-issues)');
+  }
+
+  console.log(`\n${BOLD}Testing Gemini connection...${RESET}`);
+  if (geminiKey && geminiModel) {
+    try {
+      const provider = new GeminiProvider(geminiKey, geminiModel);
+      const response = await provider.rawPrompt('Reply with just the word OK');
+      if (response.trim()) {
+        pass('Gemini API', `reachable (${geminiModel})`);
+      } else {
+        fail('Gemini API', 'empty response');
+        allRequired = false;
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      fail('Gemini API', message);
+      allRequired = false;
+    }
+  } else {
+    skip('Gemini API', 'skipped (missing key or model)');
+  }
+
+  console.log(`\n${BOLD}Testing Linear connection...${RESET}`);
+  if (linearKey) {
+    try {
+      const client = new LinearIntegrationClient(linearKey);
+      const teams = await client.listTeams();
+      if (teams.length > 0) {
+        pass('Linear API', `reachable — ${teams.length} team(s): ${teams.map((t) => t.key).join(', ')}`);
+        if (!teamId) {
+          console.log(`\n  ${DIM}Tip: save your team ID with:${RESET}`);
+          for (const t of teams) {
+            console.log(`    ${DIM}daily-summary config set integrations.linear.teamId ${t.id}  # ${t.name}${RESET}`);
+          }
+        }
+      } else {
+        pass('Linear API', 'reachable (no teams found)');
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      fail('Linear API', message);
+    }
+  } else {
+    skip('Linear API', 'skipped (no key)');
+  }
+
+  console.log();
+  if (allRequired) {
+    console.log(`${GREEN}${BOLD}Setup looks good.${RESET} Run: daily-summary run --since 24h --no-edit`);
+  } else {
+    console.log(`${RED}${BOLD}Setup incomplete.${RESET} Run: daily-summary config init`);
+    process.exit(1);
+  }
+  console.log();
+}
+</file>
+
+<file path="src/cli/commands/export.ts">
+import { loadConfig } from '../../config/loader';
+import { getLastReportPath } from '../../report/exporter';
+import { openInEditor } from '../review';
+import fs from 'fs';
+
+interface ExportOptions {
+  date?: string;
+  open?: boolean;
+}
+
+export async function exportCommand(options: ExportOptions): Promise<void> {
+  const config = loadConfig();
+  const reportPath = getLastReportPath(config, options.date);
+
+  if (!reportPath) {
+    const hint = options.date ? `for date ${options.date}` : 'yet';
+    console.error(`No report found ${hint}. Run \`daily-summary run\` first.`);
+    process.exit(1);
+  }
+
+  if (options.open) {
+    const content = fs.readFileSync(reportPath, 'utf8');
+    await openInEditor(content);
+    return;
+  }
+
+  console.log(reportPath);
+}
+</file>
+
+<file path="src/cli/commands/history.ts">
+import fs from 'fs';
+import { loadConfig } from '../../config/loader';
+import { listAllReports, getLastReportPath } from '../../report/exporter';
+import { openInEditor } from '../review';
+import os from 'os';
+
+interface HistoryOptions {
+  open?: string;
+  last?: boolean;
+}
+
+function parseCommitCount(filePath: string): number {
+  try {
+    const content = fs.readFileSync(filePath, 'utf8');
+    const match = content.match(/\*\*Commits:\*\* (\d+)/);
+    if (match) return parseInt(match[1], 10);
+    // Fallback: count lines starting with "- `" in the commits section
+    return (content.match(/^- `[0-9a-f]{7}`/gm) ?? []).length;
+  } catch {
+    return 0;
+  }
+}
+
+function shortenPath(p: string): string {
+  return p.replace(os.homedir(), '~');
+}
+
+export async function historyCommand(options: HistoryOptions): Promise<void> {
+  const config = loadConfig();
+
+  if (options.open) {
+    const reportPath = getLastReportPath(config, options.open);
+    if (!reportPath) {
+      console.error(`No report found for date: ${options.open}`);
+      process.exit(1);
+    }
+    const content = fs.readFileSync(reportPath, 'utf8');
+    await openInEditor(content);
+    return;
+  }
+
+  if (options.last) {
+    const reportPath = getLastReportPath(config);
+    if (!reportPath) {
+      console.error('No reports yet. Run `daily-summary run` first.');
+      process.exit(1);
+    }
+    const content = fs.readFileSync(reportPath, 'utf8');
+    await openInEditor(content);
+    return;
+  }
+
+  const reports = listAllReports(config);
+
+  if (reports.length === 0) {
+    console.log('No reports yet. Run `daily-summary run` to generate your first report.');
+    return;
+  }
+
+  const rows = reports.map(({ date, repoName, filePath }) => {
+    const count = parseCommitCount(filePath);
+    const countLabel = `${count} commit${count !== 1 ? 's' : ''}`;
+    return { date, repoName, countLabel, path: shortenPath(filePath) };
+  });
+
+  const colWidths = {
+    date: Math.max(10, ...rows.map((r) => r.date.length)),
+    repo: Math.max(4, ...rows.map((r) => r.repoName.length)),
+    count: Math.max(7, ...rows.map((r) => r.countLabel.length)),
+  };
+
+  const header = [
+    'Date'.padEnd(colWidths.date),
+    'Repo'.padEnd(colWidths.repo),
+    'Commits'.padEnd(colWidths.count),
+    'Path',
+  ].join('  ');
+
+  console.log(header);
+  console.log('-'.repeat(header.length));
+
+  for (const row of rows) {
+    console.log(
+      [
+        row.date.padEnd(colWidths.date),
+        row.repoName.padEnd(colWidths.repo),
+        row.countLabel.padEnd(colWidths.count),
+        row.path,
+      ].join('  ')
+    );
+  }
+}
+</file>
+
+<file path="src/cli/commands/schedule.ts">
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { execSync } from 'child_process';
+
+const PLIST_LABEL = 'com.daily-summary';
+const PLIST_PATH = path.join(os.homedir(), 'Library', 'LaunchAgents', `${PLIST_LABEL}.plist`);
+
+interface ScheduleOptions {
+  time: string;
+  remove?: boolean;
+}
+
+function resolveBinaryPath(): string {
+  try {
+    return execSync('which daily-summary', { encoding: 'utf8' }).trim();
+  } catch {
+    // Fall back to the running Node binary path companion
+    return path.join(path.dirname(process.execPath), 'daily-summary');
+  }
+}
+
+function buildPlist(binaryPath: string, hour: number, minute: number): string {
+  const logDir = path.join(os.homedir(), '.daily-summary', 'logs');
+  fs.mkdirSync(logDir, { recursive: true });
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>${PLIST_LABEL}</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>${binaryPath}</string>
+    <string>run</string>
+    <string>--no-edit</string>
+  </array>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>${hour}</integer>
+    <key>Minute</key>
+    <integer>${minute}</integer>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>${path.join(logDir, 'daily-summary.log')}</string>
+
+  <key>StandardErrorPath</key>
+  <string>${path.join(logDir, 'daily-summary-error.log')}</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>`;
+}
+
+function buildCrontabLine(binaryPath: string, hour: number, minute: number): string {
+  return `${minute} ${hour} * * * ${binaryPath} run --no-edit >> ~/.daily-summary/logs/daily-summary.log 2>&1`;
+}
+
+export function scheduleCommand(options: ScheduleOptions): void {
+  const platform = process.platform;
+
+  if (options.remove) {
+    if (platform === 'darwin') {
+      if (fs.existsSync(PLIST_PATH)) {
+        try {
+          execSync(`launchctl unload "${PLIST_PATH}"`, { stdio: 'pipe' });
+        } catch {
+          // may not be loaded — that's fine
+        }
+        fs.unlinkSync(PLIST_PATH);
+        console.log(`Removed: ${PLIST_PATH}`);
+        console.log('Scheduled job unloaded and deleted.');
+      } else {
+        console.log('No scheduled job found.');
+      }
+    } else {
+      console.log('To remove the crontab entry, run `crontab -e` and delete the daily-summary line.');
+    }
+    return;
+  }
+
+  const timeParts = options.time.split(':');
+  const hour = parseInt(timeParts[0], 10);
+  const minute = parseInt(timeParts[1] ?? '0', 10);
+
+  if (isNaN(hour) || isNaN(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    console.error(`Invalid time: ${options.time}. Use HH:MM format (e.g. 08:00).`);
+    process.exit(1);
+  }
+
+  const binaryPath = resolveBinaryPath();
+
+  if (platform === 'darwin') {
+    const plistContent = buildPlist(binaryPath, hour, minute);
+    fs.mkdirSync(path.dirname(PLIST_PATH), { recursive: true });
+    fs.writeFileSync(PLIST_PATH, plistContent, 'utf8');
+
+    console.log(`\nLaunchAgent written to: ${PLIST_PATH}`);
+    console.log(`Scheduled: daily-summary run --no-edit at ${options.time} every day\n`);
+    console.log('To activate, run:');
+    console.log(`  launchctl load "${PLIST_PATH}"`);
+    console.log('\nTo remove later:');
+    console.log('  daily-summary schedule --remove');
+  } else {
+    const crontabLine = buildCrontabLine(binaryPath, hour, minute);
+    console.log(`\nAdd this line to your crontab (run \`crontab -e\`):\n`);
+    console.log(`  ${crontabLine}\n`);
+    console.log('To remove, run `crontab -e` and delete that line.');
+  }
+}
+</file>
+
+<file path="src/cli/review.ts">
+import { spawnSync } from 'child_process';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import readline from 'readline';
+
+function askQuestion(question: string): Promise<string> {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer.trim().toLowerCase());
+    });
+  });
+}
+
+export async function openInEditor(content: string): Promise<string> {
+  const tmpFile = path.join(os.tmpdir(), `daily-summary-${Date.now()}.md`);
+  fs.writeFileSync(tmpFile, content, 'utf8');
+
+  const editor = process.env.EDITOR || process.env.VISUAL || 'vi';
+
+  const result = spawnSync(editor, [tmpFile], { stdio: 'inherit' });
+
+  if (result.error) {
+    throw new Error(`Failed to open editor "${editor}": ${result.error.message}`);
+  }
+
+  const edited = fs.readFileSync(tmpFile, 'utf8');
+  fs.unlinkSync(tmpFile);
+
+  // If the user saved no changes (content identical), confirm intent
+  if (edited === content) {
+    const answer = await askQuestion('No changes made. Keep original and export? (y/n) ');
+    if (answer !== 'y' && answer !== 'yes') {
+      throw new Error('Export cancelled by user.');
+    }
+  }
+
+  return edited;
+}
+</file>
+
+<file path="src/config/loader.test.ts">
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { writeEnvKey } from './loader';
+
+describe('writeEnvKey', () => {
+  let tmpFile: string;
+
+  beforeEach(() => {
+    tmpFile = path.join(os.tmpdir(), `daily-summary-test-${Date.now()}.env`);
+  });
+
+  afterEach(() => {
+    try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+  });
+
+  it('creates the file and writes a new key', () => {
+    writeEnvKey(tmpFile, 'GEMINI_API_KEY', 'test-key');
+    const content = fs.readFileSync(tmpFile, 'utf8');
+    expect(content).toContain('GEMINI_API_KEY=test-key');
+  });
+
+  it('updates an existing key without touching other keys', () => {
+    fs.writeFileSync(tmpFile, 'GEMINI_API_KEY=old\nGEMINI_MODEL=flash\n');
+    writeEnvKey(tmpFile, 'GEMINI_API_KEY', 'new-key');
+    const content = fs.readFileSync(tmpFile, 'utf8');
+    expect(content).toContain('GEMINI_API_KEY=new-key');
+    expect(content).toContain('GEMINI_MODEL=flash');
+    expect(content).not.toContain('GEMINI_API_KEY=old');
+  });
+
+  it('appends a new key to an existing file', () => {
+    fs.writeFileSync(tmpFile, 'GEMINI_MODEL=flash\n');
+    writeEnvKey(tmpFile, 'LINEAR_API_KEY', 'lin_abc');
+    const content = fs.readFileSync(tmpFile, 'utf8');
+    expect(content).toContain('GEMINI_MODEL=flash');
+    expect(content).toContain('LINEAR_API_KEY=lin_abc');
+  });
+
+  it('file ends with a newline', () => {
+    writeEnvKey(tmpFile, 'FOO', 'bar');
+    const content = fs.readFileSync(tmpFile, 'utf8');
+    expect(content.endsWith('\n')).toBe(true);
+  });
+});
+</file>
+
+<file path="src/docs/detector.ts">
+import { NormalizedCommit } from '../git/normalizer';
+import { DocSignal, DocTaskCategory, DocTaskSeverity } from './types';
+
+interface DetectionRule {
+  name: string;
+  severity: DocTaskSeverity;
+  category: DocTaskCategory;
+  run: (commit: NormalizedCommit) => Array<{ file: string; pattern: string; diffHunk?: string }>;
+}
+
+const TEST_FILE_RE = /\.(spec|test)\.(ts|js|tsx|jsx)$|__tests__\//;
+const DIST_FILE_RE = /^(dist|build|out)\//;
+
+function isSignificantFile(f: string): boolean {
+  return !TEST_FILE_RE.test(f) && !DIST_FILE_RE.test(f);
+}
+
+// Extract lines added in the diff matching a pattern, return up to 3 lines as a hunk snippet
+function extractDiffLines(diff: string, pattern: RegExp): string | undefined {
+  const lines = diff.split('\n').filter((l) => l.startsWith('+') && pattern.test(l));
+  if (lines.length === 0) return undefined;
+  return lines.slice(0, 3).join('\n');
+}
+
+const RULES: DetectionRule[] = [
+  {
+    name: 'breaking-change',
+    severity: 'high',
+    category: 'breaking-change',
+    run(commit) {
+      const isBreaking =
+        /BREAKING[\s_]CHANGE|breaking change|!:/i.test(commit.message) ||
+        /\b(deprecate|deprecated|remove[sd]?|migration required)\b/i.test(commit.message);
+      if (!isBreaking) return [];
+      const file = commit.changedFiles.find(isSignificantFile) ?? commit.changedFiles[0] ?? '(unknown)';
+      return [{ file, pattern: 'breaking change keyword in commit message' }];
+    },
+  },
+
+  {
+    name: 'new-export',
+    severity: 'high',
+    category: 'new-api',
+    run(commit) {
+      if (!commit.diff) return [];
+      const exportRe = /^[+]export\s+(function|class|interface|const|type|enum)\s+(\w+)/m;
+      const results: Array<{ file: string; pattern: string; diffHunk?: string }> = [];
+      // Check each changed file by scanning diff sections
+      const hunks = commit.diff.split(/(?=^diff --git )/m);
+      for (const hunk of hunks) {
+        const fileMatch = hunk.match(/^diff --git a\/(.*?) b\//m);
+        if (!fileMatch) continue;
+        const file = fileMatch[1];
+        if (!isSignificantFile(file)) continue;
+        const diffHunk = extractDiffLines(hunk, exportRe);
+        if (diffHunk) {
+          const nameMatch = hunk.match(new RegExp(exportRe.source, 'm'));
+          const exportName = nameMatch ? nameMatch[2] : 'symbol';
+          results.push({ file, pattern: `new export: ${exportName}`, diffHunk });
+        }
+      }
+      return results;
+    },
+  },
+
+  {
+    name: 'cli-option-added',
+    severity: 'high',
+    category: 'cli-option',
+    run(commit) {
+      if (!commit.diff) return [];
+      const cliFiles = commit.changedFiles.filter(
+        (f) => isSignificantFile(f) && /cli|command|cmd/i.test(f),
+      );
+      if (cliFiles.length === 0) return [];
+      const optionRe = /^[+].*\.(option|command)\s*\(/m;
+      const results: Array<{ file: string; pattern: string; diffHunk?: string }> = [];
+      const hunks = commit.diff.split(/(?=^diff --git )/m);
+      for (const hunk of hunks) {
+        const fileMatch = hunk.match(/^diff --git a\/(.*?) b\//m);
+        if (!fileMatch) continue;
+        if (!cliFiles.includes(fileMatch[1])) continue;
+        const diffHunk = extractDiffLines(hunk, optionRe);
+        if (diffHunk) {
+          results.push({ file: fileMatch[1], pattern: 'new CLI option or subcommand added', diffHunk });
+        }
+      }
+      return results;
+    },
+  },
+
+  {
+    name: 'config-change',
+    severity: 'medium',
+    category: 'config-change',
+    run(commit) {
+      const configFiles = commit.changedFiles.filter((f) =>
+        /config\.(ts|js|json)$|\/config\/types\.ts$|\.env(\.example)?$|tsconfig.*\.json$/.test(f),
+      );
+      return configFiles.map((f) => ({ file: f, pattern: 'config or environment file changed' }));
+    },
+  },
+
+  {
+    name: 'schema-change',
+    severity: 'high',
+    category: 'schema-change',
+    run(commit) {
+      const schemaFiles = commit.changedFiles.filter((f) =>
+        /migration|schema|prisma|\.sql$/i.test(f),
+      );
+      return schemaFiles.map((f) => ({ file: f, pattern: 'schema or migration file changed' }));
+    },
+  },
+
+  {
+    name: 'new-feature',
+    severity: 'medium',
+    category: 'new-feature',
+    run(commit) {
+      if (commit.category !== 'feat') return [];
+      if (commit.diffStat.insertions < 20) return [];
+      const file = commit.changedFiles.find(isSignificantFile) ?? commit.changedFiles[0] ?? '(unknown)';
+      return [{ file, pattern: `new feature with ${commit.diffStat.insertions} added lines` }];
+    },
+  },
+
+  {
+    name: 'public-api-entry',
+    severity: 'medium',
+    category: 'new-api',
+    run(commit) {
+      if (commit.category !== 'feat') return [];
+      const entryFiles = commit.changedFiles.filter(
+        (f) => /^(src\/)?index\.(ts|js)$|^lib\/index\.(ts|js)$/.test(f),
+      );
+      return entryFiles.map((f) => ({ file: f, pattern: 'feature commit touched public entry point' }));
+    },
+  },
+];
+
+function signalKey(sha: string, file: string): string {
+  return `${sha}::${file}`;
+}
+
+export function detectDocSignals(commits: NormalizedCommit[]): DocSignal[] {
+  const seen = new Map<string, DocTaskSeverity>();
+  const signals: DocSignal[] = [];
+
+  const severityRank: Record<DocTaskSeverity, number> = { high: 3, medium: 2, low: 1 };
+
+  for (const commit of commits) {
+    for (const rule of RULES) {
+      const matches = rule.run(commit);
+      for (const match of matches) {
+        const key = signalKey(commit.sha, match.file);
+        const existing = seen.get(key);
+
+        if (existing && severityRank[existing] >= severityRank[rule.severity]) continue;
+
+        seen.set(key, rule.severity);
+
+        // Replace existing lower-severity signal for same key
+        const idx = signals.findIndex((s) => signalKey(s.commitSha, s.triggerFile) === key);
+        const signal: DocSignal = {
+          commitSha: commit.sha,
+          commitMessage: commit.message,
+          triggerFile: match.file,
+          triggerPattern: match.pattern,
+          category: rule.category,
+          severity: rule.severity,
+          diffHunk: match.diffHunk,
+        };
+        if (idx >= 0) {
+          signals[idx] = signal;
+        } else {
+          signals.push(signal);
+        }
+      }
+    }
+  }
+
+  // Sort: high → medium → low
+  return signals.sort((a, b) => severityRank[b.severity] - severityRank[a.severity]);
+}
+</file>
+
+<file path="src/docs/generator.ts">
+import fs from 'fs';
+import path from 'path';
+import { GeminiProvider } from '../llm/gemini';
+import { DocSignal, DocTask, DocTaskCategory } from './types';
+
+// ── Template definitions ──────────────────────────────────────────────────────
+
+interface TaskTemplate {
+  titleFn: (file: string, signal: DocSignal) => string;
+  description: string;
+  actionItems: string[];
+}
+
+const TEMPLATES: Record<DocTaskCategory, TaskTemplate> = {
+  'breaking-change': {
+    titleFn: (file) => `Update CHANGELOG and migration guide for breaking change in \`${path.basename(file)}\``,
+    description: 'A breaking change was detected. Consumers of this code need a migration path.',
+    actionItems: [
+      'Add a BREAKING CHANGE entry to CHANGELOG.md with the old and new behavior',
+      'Write a migration guide explaining how to update call sites',
+      'Flag the change in README if it affects a public-facing API',
+      'Update any relevant usage examples to reflect the new interface',
+    ],
+  },
+  'new-api': {
+    titleFn: (file, s) => `Document new exported symbol in \`${path.basename(file)}\` (${s.triggerPattern})`,
+    description: 'New public symbols were exported. They need API documentation.',
+    actionItems: [
+      'Add the new export to the API reference with a description and type signature',
+      'Add at least one usage example showing a realistic call',
+      'Update README if this export is user-facing',
+      'Add to CHANGELOG under the Features section',
+    ],
+  },
+  'cli-option': {
+    titleFn: (file) => `Document new CLI option or command added in \`${path.basename(file)}\``,
+    description: 'A new CLI flag or subcommand was added.',
+    actionItems: [
+      'Update the README "Usage" section with the new flag and its description',
+      'Ensure the --help text accurately describes the option',
+      'Add an example invocation to the docs',
+      'Add to CHANGELOG under Features',
+    ],
+  },
+  'config-change': {
+    titleFn: (file) => `Document configuration changes in \`${path.basename(file)}\``,
+    description: 'A config file or type was modified. Users may need to update their setup.',
+    actionItems: [
+      'Update the configuration reference with new or changed fields',
+      'Add new fields to .env.example if they require environment variables',
+      'Note any default value changes in CHANGELOG',
+      'Update README setup instructions if the change affects onboarding',
+    ],
+  },
+  'schema-change': {
+    titleFn: (file) => `Write migration guide for schema change in \`${path.basename(file)}\``,
+    description: 'A database or data schema file was modified.',
+    actionItems: [
+      'Document all new, removed, or renamed fields in the schema reference',
+      'Write step-by-step migration instructions for existing data',
+      'Update entity/model documentation to reflect the new shape',
+      'Add to CHANGELOG with migration instructions link',
+    ],
+  },
+  'new-feature': {
+    titleFn: (_file, s) => `Write feature documentation for: ${s.commitMessage}`,
+    description: 'A significant new feature was added.',
+    actionItems: [
+      'Add a feature overview section to the relevant docs page',
+      'Include a real-world usage example',
+      'Update README if this feature affects the main user workflow',
+      'Add to CHANGELOG under Features',
+    ],
+  },
+  'general': {
+    titleFn: (file) => `Review documentation impact of changes to \`${path.basename(file)}\``,
+    description: 'This change may have documentation implications.',
+    actionItems: [
+      'Review whether any existing docs reference this area and need updating',
+      'Add to CHANGELOG if the change is user-visible',
+    ],
+  },
+};
+
+// ── Doc file suggestion ───────────────────────────────────────────────────────
+
+const CANDIDATE_DOC_FILES = [
+  'README.md',
+  'CHANGELOG.md',
+  'CONTRIBUTING.md',
+  'docs/api/index.md',
+  'docs/api',
+  'docs/guides',
+  'docs',
+];
+
+export function suggestDocFiles(repoPath: string): string[] {
+  const resolved = path.resolve(repoPath);
+  return CANDIDATE_DOC_FILES.filter((f) => fs.existsSync(path.join(resolved, f)));
+}
+
+// ── LLM prompt for task description ──────────────────────────────────────────
+
+function buildDocTaskPrompt(signal: DocSignal): string {
+  const diffSection = signal.diffHunk
+    ? `\nRelevant diff:\n\`\`\`\n${signal.diffHunk}\n\`\`\``
+    : '';
+
+  return `You are a technical documentation advisor. A code change was detected that likely needs documentation.
+
+Commit: "${signal.commitMessage}"
+File changed: ${signal.triggerFile}
+Detection reason: ${signal.triggerPattern}
+Change category: ${signal.category}
+${diffSection}
+
+Generate a documentation task in this exact JSON format:
+{
+  "title": "<specific 1-sentence title, max 100 chars, starts with an action verb>",
+  "description": "<1-2 sentences explaining what needs to be documented and why>",
+  "actionItems": ["<specific action 1, max 100 chars>", "<specific action 2>", "<specific action 3>"]
+}
+
+Rules:
+- Title must be specific to this file and change — no generic phrases like "update documentation"
+- Each action item must name a specific file, section, or example to add/update
+- Do NOT invent information not present in the commit message or diff
+- Return ONLY the JSON object, no other text`;
+}
+
+async function generateWithLLM(
+  signal: DocSignal,
+  provider: GeminiProvider,
+): Promise<{ title: string; description: string; actionItems: string[] } | null> {
+  try {
+    const prompt = buildDocTaskPrompt(signal);
+    // Use the provider's underlying model directly via a raw prompt
+    const raw = await provider.rawPrompt(prompt);
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    const parsed = JSON.parse(jsonMatch[0]) as {
+      title?: string;
+      description?: string;
+      actionItems?: string[];
+    };
+    if (!parsed.title || !parsed.actionItems?.length) return null;
+    return {
+      title: parsed.title,
+      description: parsed.description ?? '',
+      actionItems: parsed.actionItems,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ── Main generator ────────────────────────────────────────────────────────────
+
+export async function generateDocTasks(
+  signals: DocSignal[],
+  repoPath: string,
+  useLLM: boolean,
+  provider?: GeminiProvider,
+): Promise<DocTask[]> {
+  const docFiles = suggestDocFiles(repoPath);
+  const tasks: DocTask[] = [];
+
+  for (let i = 0; i < signals.length; i++) {
+    const signal = signals[i];
+    const template = TEMPLATES[signal.category];
+
+    let title = template.titleFn(signal.triggerFile, signal);
+    let description = template.description;
+    let actionItems = [...template.actionItems];
+
+    if (useLLM && provider) {
+      const llmResult = await generateWithLLM(signal, provider);
+      if (llmResult) {
+        title = llmResult.title;
+        description = llmResult.description;
+        actionItems = llmResult.actionItems;
+      }
+    }
+
+    tasks.push({
+      id: `doc-${signal.commitSha.slice(0, 7)}-${i}`,
+      title,
+      severity: signal.severity,
+      category: signal.category,
+      commitSha: signal.commitSha,
+      commitMessage: signal.commitMessage,
+      triggerFile: signal.triggerFile,
+      description,
+      actionItems,
+      suggestedDocFiles: docFiles,
+      status: 'pending',
+    });
+  }
+
+  return tasks;
+}
+</file>
+
+<file path="src/git/normalizer.test.ts">
+import { describe, it, expect } from 'vitest';
+import { categorizeCommit, normalizeDiff } from './normalizer';
+import { Commit } from './ingestion';
+
+describe('categorizeCommit', () => {
+  it.each([
+    ['feat: add login', 'feat'],
+    ['feat(auth): add login', 'feat'],
+    ['fix: null check', 'fix'],
+    ['fix(api)!: breaking change', 'fix'],
+    ['refactor: extract helper', 'refactor'],
+    ['docs: update README', 'docs'],
+    ['chore: bump deps', 'chore'],
+    ['perf: cache query results', 'perf'],
+    ['test: add unit tests', 'test'],
+  ])('categorizes "%s" as %s', (message, expected) => {
+    expect(categorizeCommit(message)).toBe(expected);
+  });
+
+  it('falls back to keyword matching for non-conventional commits', () => {
+    expect(categorizeCommit('add new payment flow')).toBe('feat');
+    expect(categorizeCommit('fix broken search query')).toBe('fix');
+    expect(categorizeCommit('optimize database queries')).toBe('perf');
+  });
+
+  it('returns other for unrecognized messages', () => {
+    expect(categorizeCommit('random message without hints')).toBe('other');
+    expect(categorizeCommit('WIP')).toBe('other');
+  });
+});
+
+describe('normalizeDiff', () => {
+  function makeCommit(overrides: Partial<Commit> = {}): Commit {
+    return {
+      sha: 'abc1234',
+      author: 'Test User',
+      timestamp: '2024-01-01T00:00:00Z',
+      message: 'feat: test commit',
+      changedFiles: ['src/index.ts'],
+      diffStat: { insertions: 10, deletions: 2 },
+      rawDiff: 'diff --git a/src/index.ts b/src/index.ts\n+new line\n',
+      ...overrides,
+    };
+  }
+
+  it('assigns a category to each commit', () => {
+    const result = normalizeDiff([makeCommit({ message: 'fix: patch null ref' })]);
+    expect(result[0].category).toBe('fix');
+  });
+
+  it('filters out lock files from changedFiles', () => {
+    const commit = makeCommit({ changedFiles: ['src/index.ts', 'package-lock.json'] });
+    const result = normalizeDiff([commit]);
+    expect(result[0].changedFiles).not.toContain('package-lock.json');
+    expect(result[0].changedFiles).toContain('src/index.ts');
+  });
+
+  it('excludes commits that only touch excluded paths', () => {
+    const commit = makeCommit({ changedFiles: ['dist/bundle.js'] });
+    const result = normalizeDiff([commit], { focusAreas: ['src/'] });
+    expect(result).toHaveLength(0);
+  });
+
+  it('returns empty array for empty input', () => {
+    expect(normalizeDiff([])).toHaveLength(0);
+  });
+});
+</file>
+
+<file path="src/integrations/linear/client.ts">
+import { LinearClient } from '@linear/sdk';
+import { LinearIssue } from '../types';
+
+function parseIdentifier(identifier: string): { teamKey: string; number: number } | null {
+  const match = identifier.match(/^([A-Z]{2,10})-(\d+)$/);
+  if (!match) return null;
+  return { teamKey: match[1], number: parseInt(match[2], 10) };
+}
+
+export class LinearIntegrationClient {
+  private client: LinearClient;
+
+  constructor(apiKey: string) {
+    this.client = new LinearClient({ apiKey });
+  }
+
+  async fetchIssues(identifiers: string[]): Promise<Map<string, LinearIssue>> {
+    if (identifiers.length === 0) return new Map();
+
+    // Group by team key so we can batch per team
+    const byTeam = new Map<string, number[]>();
+    for (const id of identifiers) {
+      const parsed = parseIdentifier(id);
+      if (!parsed) continue;
+      const existing = byTeam.get(parsed.teamKey) ?? [];
+      existing.push(parsed.number);
+      byTeam.set(parsed.teamKey, existing);
+    }
+
+    const result = new Map<string, LinearIssue>();
+
+    for (const [teamKey, numbers] of byTeam) {
+      try {
+        const issues = await this.client.issues({
+          filter: {
+            team: { key: { eq: teamKey } },
+            number: { in: numbers },
+          },
+          includeArchived: false,
+        });
+
+        for (const issue of issues.nodes) {
+          const state = await issue.state;
+          const labels = await issue.labels();
+          let cycleNumber: number | undefined;
+          let cycleTitle: string | undefined;
+
+          try {
+            const cycle = await issue.cycle;
+            if (cycle) {
+              cycleNumber = cycle.number;
+              cycleTitle = cycle.name ?? undefined;
+            }
+          } catch {
+            // cycle may not be available for all issues
+          }
+
+          const linearIssue: LinearIssue = {
+            id: issue.id,
+            identifier: issue.identifier,
+            title: issue.title,
+            status: state?.name ?? 'Unknown',
+            priority: issue.priority,
+            url: issue.url,
+            labels: labels.nodes.map((l) => l.name),
+            cycleNumber,
+            cycleTitle,
+          };
+          result.set(issue.identifier, linearIssue);
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        throw new Error(`Linear API error fetching issues for team ${teamKey}: ${message}`);
+      }
+    }
+
+    return result;
+  }
+
+  async createIssue(params: {
+    title: string;
+    description: string;
+    teamId: string;
+    priority?: number;
+  }): Promise<{ identifier: string; url: string }> {
+    try {
+      const payload = await this.client.createIssue({
+        title: params.title,
+        description: params.description,
+        teamId: params.teamId,
+        priority: params.priority,
+      });
+
+      const issue = await payload.issue;
+      if (!issue) {
+        throw new Error('Issue creation returned no issue object');
+      }
+
+      return { identifier: issue.identifier, url: issue.url };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Linear API error creating issue: ${message}`);
+    }
+  }
+
+  async listTeams(): Promise<Array<{ id: string; name: string; key: string }>> {
+    try {
+      const teams = await this.client.teams();
+      return teams.nodes.map((t) => ({ id: t.id, name: t.name, key: t.key }));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Linear API error listing teams: ${message}`);
+    }
+  }
+}
+</file>
+
+<file path="src/integrations/extractor.test.ts">
+import { describe, it, expect } from 'vitest';
+import { extractIssueRefs, extractIssueRefsFromBranch } from './extractor';
+
+describe('extractIssueRefs', () => {
+  it('parses a plain Linear ID', () => {
+    const refs = extractIssueRefs('ENG-123');
+    expect(refs).toHaveLength(1);
+    expect(refs[0]).toMatchObject({ identifier: 'ENG-123', type: 'linear' });
+    expect(refs[0].closingKeyword).toBeUndefined();
+  });
+
+  it('parses a closing keyword + Linear ID', () => {
+    const refs = extractIssueRefs('Fixes ENG-456');
+    expect(refs).toHaveLength(1);
+    expect(refs[0]).toMatchObject({ identifier: 'ENG-456', type: 'linear', closingKeyword: 'fixes' });
+  });
+
+  it('parses multiple variants in one message', () => {
+    const refs = extractIssueRefs('Fixes ENG-123, see also ENG-456 and closes #42');
+    const ids = refs.map((r) => r.identifier);
+    expect(ids).toContain('ENG-123');
+    expect(ids).toContain('ENG-456');
+    expect(ids).toContain('#42');
+  });
+
+  it('deduplicates: closing-keyword ref wins over plain ref for same identifier', () => {
+    const refs = extractIssueRefs('Fixes ENG-123 related to ENG-123');
+    const engRefs = refs.filter((r) => r.identifier === 'ENG-123');
+    expect(engRefs).toHaveLength(1);
+    expect(engRefs[0].closingKeyword).toBe('fixes');
+  });
+
+  it('parses GitHub-style issue number', () => {
+    const refs = extractIssueRefs('Closes #99');
+    const gh = refs.find((r) => r.type === 'github');
+    expect(gh?.identifier).toBe('#99');
+  });
+
+  it('returns empty array for plain commit message', () => {
+    expect(extractIssueRefs('chore: update dependencies')).toHaveLength(0);
+  });
+});
+
+describe('extractIssueRefsFromBranch', () => {
+  it('extracts Linear ID from feature branch name', () => {
+    const refs = extractIssueRefsFromBranch('feature/ENG-123-add-oauth');
+    expect(refs.map((r) => r.identifier)).toContain('ENG-123');
+  });
+
+  it('extracts Linear ID from slash-prefixed branch', () => {
+    const refs = extractIssueRefsFromBranch('ENG-456/fix-bug');
+    expect(refs.map((r) => r.identifier)).toContain('ENG-456');
+  });
+
+  it('returns empty for a branch with no issue ref', () => {
+    expect(extractIssueRefsFromBranch('main')).toHaveLength(0);
+  });
+});
+</file>
+
+<file path="src/integrations/types.ts">
+import { NormalizedCommit } from '../git/normalizer';
+
+export interface IssueRef {
+  raw: string;
+  identifier: string;
+  type: 'linear' | 'github' | 'unknown';
+  closingKeyword?: string;
+}
+
+export interface LinearIssue {
+  id: string;
+  identifier: string;
+  title: string;
+  status: string;
+  priority: number;
+  url: string;
+  labels: string[];
+  cycleNumber?: number;
+  cycleTitle?: string;
+}
+
+export interface EnrichedCommit extends NormalizedCommit {
+  issueRefs: IssueRef[];
+  linearIssues: LinearIssue[];
+}
+
+export interface TicketGroup {
+  identifier: string;
+  title: string;
+  url?: string;
+  status?: string;
+  priority?: number;
+  cycleNumber?: number;
+  cycleTitle?: string;
+  commits: EnrichedCommit[];
+}
+</file>
+
+<file path="src/report/generator.test.ts">
+import { describe, it, expect } from 'vitest';
+import { generateReport, buildTicketSection } from './generator';
+import { NormalizedCommit } from '../git/normalizer';
+import { TicketGroup, EnrichedCommit } from '../integrations/types';
+import { Config } from '../config/types';
+
+function makeCommit(overrides: Partial<NormalizedCommit> = {}): NormalizedCommit {
+  return {
+    sha: 'abc1234def5678',
+    author: 'Test',
+    timestamp: '2024-01-01T00:00:00Z',
+    message: 'feat: add login',
+    changedFiles: ['src/auth.ts'],
+    diffStat: { insertions: 10, deletions: 2 },
+    diff: '',
+    diffTruncated: false,
+    category: 'feat',
+    ...overrides,
+  };
+}
+
+function makeConfig(overrides: Partial<Config> = {}): Config {
+  return {
+    repoPath: '/tmp/repo',
+    branch: 'main',
+    timeWindow: '24h',
+    llm: { summaryLength: 'medium' },
+    output: { dir: '/tmp/reports' },
+    ...overrides,
+  };
+}
+
+describe('generateReport', () => {
+  it('produces a report with expected fields', () => {
+    const report = generateReport([makeCommit()], 'Test summary', makeConfig());
+    expect(report.commitCount).toBe(1);
+    expect(report.branch).toBe('main');
+    expect(report.content).toContain('Daily Stand-up');
+    expect(report.content).toContain('Test summary');
+    expect(report.content).toContain('feat: add login');
+  });
+
+  it('does not include By Issue section when ticketGroups is undefined', () => {
+    const report = generateReport([makeCommit()], 'Summary', makeConfig());
+    expect(report.content).not.toContain('## By Issue');
+    expect(report.ticketGroups).toBeUndefined();
+  });
+
+  it('includes By Issue section when ticketGroups is provided', () => {
+    const commit = makeCommit() as EnrichedCommit;
+    commit.issueRefs = [];
+    commit.linearIssues = [];
+    const group: TicketGroup = {
+      identifier: 'ENG-1',
+      title: 'Test issue',
+      url: 'https://linear.app/test/issue/ENG-1',
+      status: 'In Progress',
+      priority: 2,
+      commits: [commit],
+    };
+    const report = generateReport([makeCommit()], 'Summary', makeConfig(), [group]);
+    expect(report.content).toContain('## By Issue');
+    expect(report.content).toContain('ENG-1: Test issue');
+    expect(report.ticketGroups).toHaveLength(1);
+  });
+});
+
+describe('buildTicketSection', () => {
+  it('renders issue identifier, title, and commit', () => {
+    const commit = makeCommit() as EnrichedCommit;
+    commit.issueRefs = [];
+    commit.linearIssues = [];
+    const group: TicketGroup = {
+      identifier: 'ENG-42',
+      title: 'My feature',
+      commits: [commit],
+    };
+    const md = buildTicketSection([group]);
+    expect(md).toContain('ENG-42: My feature');
+    expect(md).toContain('feat: add login');
+    expect(md).toContain('+10/-2');
+  });
+
+  it('includes status and priority in heading when provided', () => {
+    const commit = makeCommit() as EnrichedCommit;
+    commit.issueRefs = [];
+    commit.linearIssues = [];
+    const group: TicketGroup = {
+      identifier: 'ENG-5',
+      title: 'Fix bug',
+      status: 'Done',
+      priority: 2,
+      commits: [commit],
+    };
+    const md = buildTicketSection([group]);
+    expect(md).toContain('Done');
+    expect(md).toContain('High');
+  });
+
+  it('renders a URL as a Markdown link', () => {
+    const commit = makeCommit() as EnrichedCommit;
+    commit.issueRefs = [];
+    commit.linearIssues = [];
+    const group: TicketGroup = {
+      identifier: 'ENG-7',
+      title: 'Linked issue',
+      url: 'https://linear.app/org/issue/ENG-7',
+      commits: [commit],
+    };
+    const md = buildTicketSection([group]);
+    expect(md).toContain('[ENG-7: Linked issue](https://linear.app/org/issue/ENG-7)');
+  });
+});
+</file>
+
+<file path=".npmignore">
+src/
+tsconfig.json
+.env
+.env.example
+.plans/
+.claude/
+.agents/
+agent-skills/
+install.sh
+claude-install.log
+*.daily-summary.json
+</file>
+
+<file path="vitest.config.ts">
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    include: ['src/**/*.test.ts'],
+  },
+});
+</file>
+
+<file path="src/cli/commands/config.ts">
+import readline from 'readline';
+import fs from 'fs';
+import { loadConfig, saveConfig, getNestedKey, maskConfig, writeEnvKey, GLOBAL_ENV_FILE } from '../../config/loader';
+import { ConfigScope } from '../../config/types';
+
+export function configShowCommand(): void {
+  const config = loadConfig();
+  const masked = maskConfig(config);
+  console.log(JSON.stringify(masked, null, 2));
+}
+
+export function configGetCommand(key: string): void {
+  const config = loadConfig();
+  const value = getNestedKey(config, key);
+  if (value === undefined) {
+    console.error(`Key not found: ${key}`);
+    process.exit(1);
+  }
+  console.log(String(value));
+}
+
+export function configSetCommand(key: string, value: string, options: { global?: boolean }): void {
+  const scope: ConfigScope = options.global ? 'global' : 'local';
+  saveConfig(scope, key, value);
+  console.log(`Set ${key} = ${value} (${scope})`);
+}
+
+function ask(rl: readline.Interface, question: string): Promise<string> {
+  return new Promise((resolve) => rl.question(question, resolve));
+}
+
+function maskValue(value: string): string {
+  if (value.length <= 8) return '***';
+  return value.slice(0, 4) + '***' + value.slice(-4);
+}
+
+function readExistingEnvKey(key: string): string {
+  try {
+    const content = fs.readFileSync(GLOBAL_ENV_FILE, 'utf8');
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith(`${key}=`)) {
+        return trimmed.slice(key.length + 1).replace(/^["']|["']$/g, '');
+      }
+    }
+  } catch {
+    // file doesn't exist
+  }
+  return '';
+}
+
+export async function configInitCommand(): Promise<void> {
+  if (!process.stdin.isTTY) {
+    console.error('config init requires an interactive terminal.');
+    console.error('Set keys directly: export GEMINI_API_KEY=<key>  or  daily-summary config set llm.apiKey <key>');
+    process.exit(1);
+  }
+
+  console.log('\nWelcome to daily-summary setup.\n');
+  console.log(`Config will be saved to: ${GLOBAL_ENV_FILE}\n`);
+
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+
+  try {
+    const fields: Array<{ key: string; label: string; required: boolean; default?: string }> = [
+      { key: 'GEMINI_API_KEY', label: 'Gemini API key (https://aistudio.google.com/apikey)', required: true },
+      { key: 'GEMINI_MODEL', label: 'Gemini model name', required: true, default: 'gemini-2.0-flash-lite' },
+      { key: 'LINEAR_API_KEY', label: 'Linear API key (optional — press Enter to skip)', required: false },
+    ];
+
+    const updates: Array<{ key: string; value: string }> = [];
+
+    for (const field of fields) {
+      const existing = readExistingEnvKey(field.key) || process.env[field.key] || '';
+      const displayDefault = existing
+        ? `current: ${maskValue(existing)}`
+        : field.default
+        ? `default: ${field.default}`
+        : '';
+      const hint = displayDefault ? ` [${displayDefault}]` : '';
+      const input = await ask(rl, `  ${field.label}${hint}: `);
+      const value = input.trim() || existing || field.default || '';
+
+      if (field.required && !value) {
+        console.error(`\n${field.key} is required. Run config init again to complete setup.`);
+        rl.close();
+        process.exit(1);
+      }
+
+      if (value) updates.push({ key: field.key, value });
+    }
+
+    rl.close();
+
+    for (const { key, value } of updates) {
+      writeEnvKey(GLOBAL_ENV_FILE, key, value);
+    }
+
+    console.log(`\nConfig saved to ${GLOBAL_ENV_FILE}`);
+    console.log('\nNext: run  daily-summary doctor  to verify your setup.');
+  } catch (err) {
+    rl.close();
+    throw err;
+  }
+}
+</file>
+
+<file path="src/docs/exporter.ts">
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { execSync } from 'child_process';
+import { DocTask, DocExportFormat } from './types';
+import { DocsRepoConfig } from '../config/types';
+
+const DOC_TASKS_DIR = path.join(os.homedir(), '.daily-summary', 'doc-tasks');
+
+const SEVERITY_LABEL: Record<string, string> = {
+  high: 'HIGH',
+  medium: 'MED',
+  low: 'LOW',
+};
+
+function buildMarkdown(
+  tasks: DocTask[],
+  repoName: string,
+  date: string,
+  branch: string,
+  timeWindow: string,
+): string {
+  const accepted = tasks.filter((t) => t.status === 'accepted');
+  const lines: string[] = [
+    `# Documentation Tasks — ${date}`,
+    '',
+    `Generated from: **${repoName}** · \`${branch}\` · last ${timeWindow}`,
+    `Accepted: **${accepted.length}** task${accepted.length !== 1 ? 's' : ''}`,
+    '',
+    '---',
+  ];
+
+  for (const task of accepted) {
+    const label = SEVERITY_LABEL[task.severity] ?? task.severity.toUpperCase();
+    lines.push('', `## [${label}] ${task.title}`, '');
+    lines.push(`**Commit:** \`${task.commitSha.slice(0, 7)}\` ${task.commitMessage}`);
+    lines.push(`**Category:** ${task.category}`);
+    lines.push(`**File:** \`${task.triggerFile}\``);
+    if (task.description) {
+      lines.push('', task.description);
+    }
+    lines.push('', '### Action Items');
+    for (const item of task.actionItems) {
+      lines.push(`- [ ] ${item}`);
+    }
+    if (task.suggestedDocFiles.length > 0) {
+      lines.push('', `**Suggested files:** ${task.suggestedDocFiles.join(', ')}`);
+    }
+    lines.push('', '---');
+  }
+
+  return lines.join('\n').trim() + '\n';
+}
+
+export function exportDocTasks(
+  tasks: DocTask[],
+  repoName: string,
+  date: string,
+  branch: string,
+  timeWindow: string,
+  format: DocExportFormat,
+): string[] {
+  const accepted = tasks.filter((t) => t.status === 'accepted');
+  if (accepted.length === 0) return [];
+
+  fs.mkdirSync(DOC_TASKS_DIR, { recursive: true });
+  const base = `${date}-${repoName}`;
+  const written: string[] = [];
+
+  if (format === 'markdown' || format === 'both') {
+    const mdPath = path.join(DOC_TASKS_DIR, `${base}.md`);
+    fs.writeFileSync(mdPath, buildMarkdown(tasks, repoName, date, branch, timeWindow), 'utf8');
+    written.push(mdPath);
+  }
+
+  if (format === 'json' || format === 'both') {
+    const jsonPath = path.join(DOC_TASKS_DIR, `${base}.json`);
+    fs.writeFileSync(jsonPath, JSON.stringify(accepted, null, 2) + '\n', 'utf8');
+    written.push(jsonPath);
+  }
+
+  return written;
+}
+
+export function pushToDocsRepo(
+  tasks: DocTask[],
+  repoName: string,
+  date: string,
+  docsRepoConfig: DocsRepoConfig,
+): string {
+  if (!docsRepoConfig.path) {
+    throw new Error(
+      'Docs repo path is not configured. Set it with:\n  daily-summary config set integrations.docsRepo.path /path/to/docs-repo',
+    );
+  }
+
+  const repoPath = path.resolve(docsRepoConfig.path);
+  if (!fs.existsSync(repoPath)) {
+    throw new Error(`Docs repo path does not exist: ${repoPath}`);
+  }
+
+  const outputSubdir = docsRepoConfig.outputDir ?? 'doc-tasks';
+  const outputDir = path.join(repoPath, outputSubdir);
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  const accepted = tasks.filter((t) => t.status === 'accepted');
+  const fileName = `${date}-${repoName}.md`;
+  const filePath = path.join(outputDir, fileName);
+
+  const content = buildMarkdown(accepted, repoName, date, '', '');
+  fs.writeFileSync(filePath, content, 'utf8');
+
+  if (docsRepoConfig.autoCommit) {
+    const relPath = path.join(outputSubdir, fileName);
+    execSync(`git -C "${repoPath}" add "${relPath}"`, { stdio: 'pipe' });
+    execSync(
+      `git -C "${repoPath}" commit -m "docs: add doc tasks from ${repoName} ${date}"`,
+      { stdio: 'pipe' },
+    );
+  }
+
+  return filePath;
+}
+</file>
+
+<file path="src/docs/types.ts">
+export type DocTaskSeverity = 'high' | 'medium' | 'low';
+
+export type DocTaskCategory =
+  | 'breaking-change'
+  | 'new-api'
+  | 'cli-option'
+  | 'config-change'
+  | 'schema-change'
+  | 'new-feature'
+  | 'general';
+
+export type DocTaskStatus = 'pending' | 'accepted' | 'rejected';
+
+export type DocExportFormat = 'markdown' | 'json' | 'both';
+
+export interface DocSignal {
+  commitSha: string;
+  commitMessage: string;
+  triggerFile: string;
+  triggerPattern: string;
+  category: DocTaskCategory;
+  severity: DocTaskSeverity;
+  diffHunk?: string;
+}
+
+export interface DocTask {
+  id: string;
+  title: string;
+  severity: DocTaskSeverity;
+  category: DocTaskCategory;
+  commitSha: string;
+  commitMessage: string;
+  triggerFile: string;
+  description: string;
+  actionItems: string[];
+  suggestedDocFiles: string[];
+  status: DocTaskStatus;
+  linearIssueUrl?: string;
+  linearIssueIdentifier?: string;
+}
+</file>
+
+<file path="src/git/ingestion.ts">
+import { execSync } from 'child_process';
+import path from 'path';
+import { Config } from '../config/types';
+
+export interface DiffStat {
+  insertions: number;
+  deletions: number;
+}
+
+export interface Commit {
+  sha: string;
+  author: string;
+  timestamp: string;
+  message: string;
+  changedFiles: string[];
+  diffStat: DiffStat;
+  rawDiff: string;
+}
+
+const NULL_BYTE = '\x00';
+
+function parseDiffStat(statLine: string): DiffStat {
+  const insertMatch = statLine.match(/(\d+) insertion/);
+  const deleteMatch = statLine.match(/(\d+) deletion/);
+  return {
+    insertions: insertMatch ? parseInt(insertMatch[1], 10) : 0,
+    deletions: deleteMatch ? parseInt(deleteMatch[1], 10) : 0,
+  };
+}
+
+function parseChangedFiles(statBlock: string): string[] {
+  return statBlock
+    .split('\n')
+    .filter((line) => line.includes('|') || line.match(/^\s+\S+.*\+{0,}/))
+    .map((line) => line.trim().split('|')[0].trim())
+    .filter(Boolean);
+}
+
+function parseSince(timeWindow: string): string {
+  // Accepts formats like: 24h, 2d, 1w, 30m
+  const match = timeWindow.match(/^(\d+)(m|h|d|w)$/);
+  if (!match) return timeWindow; // pass through if it's already a git-compatible string
+
+  const [, amount, unit] = match;
+  const units: Record<string, string> = {
+    m: 'minutes',
+    h: 'hours',
+    d: 'days',
+    w: 'weeks',
+  };
+  return `${amount} ${units[unit]} ago`;
+}
+
+export function ingestCommits(config: Config, overrides: { since?: string; branch?: string } = {}): Commit[] {
+  const repoPath = path.resolve(config.repoPath);
+  const since = parseSince(overrides.since ?? config.timeWindow);
+  const branch = overrides.branch ?? config.branch;
+
+  const gitOpts = { cwd: repoPath, encoding: 'utf8' as const };
+
+  // Get list of SHAs in range, null-delimited for reliable parsing
+  const shaList = execSync(
+    `git log ${branch} --since="${since}" --format=%H%x00`,
+    gitOpts
+  )
+    .split(NULL_BYTE)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (shaList.length === 0) return [];
+
+  const commits: Commit[] = [];
+
+  for (const sha of shaList) {
+    // Get commit metadata
+    const meta = execSync(
+      `git show --no-patch --format="%an%x00%aI%x00%s" ${sha}`,
+      gitOpts
+    ).trim();
+
+    const [author, timestamp, message] = meta.split(NULL_BYTE);
+
+    // Get stat summary (changed files + insertion/deletion counts)
+    const statOutput = execSync(`git show --stat --no-patch ${sha}`, gitOpts);
+    const statLines = statOutput.trim().split('\n');
+    const summaryLine = statLines[statLines.length - 1];
+    const diffStat = parseDiffStat(summaryLine);
+    const changedFiles = parseChangedFiles(statLines.slice(0, -1).join('\n'));
+
+    // Get raw diff (we'll cap it in the normalizer)
+    const rawDiff = execSync(`git show --patch --no-color ${sha}`, gitOpts);
+
+    commits.push({
+      sha,
+      author: author?.trim() ?? '',
+      timestamp: timestamp?.trim() ?? '',
+      message: message?.trim() ?? '',
+      changedFiles,
+      diffStat,
+      rawDiff,
+    });
+  }
+
+  return commits;
+}
+</file>
+
+<file path="src/git/normalizer.ts">
+import { Commit } from './ingestion';
+import { CommitCategory, Config } from '../config/types';
+
+export interface NormalizedCommit {
+  sha: string;
+  author: string;
+  timestamp: string;
+  message: string;
+  changedFiles: string[];
+  diffStat: { insertions: number; deletions: number };
+  diff: string;
+  diffTruncated: boolean;
+  category: CommitCategory;
+}
+
+const NOISE_FILE_PATTERNS = [
+  /package-lock\.json$/,
+  /yarn\.lock$/,
+  /pnpm-lock\.yaml$/,
+  /composer\.lock$/,
+  /Gemfile\.lock$/,
+  /Podfile\.lock$/,
+  /.*\.lock$/,
+  /dist\//,
+  /build\//,
+  /\.min\.(js|css)$/,
+  /\.(png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|otf|pdf|zip|tar|gz)$/i,
+];
+
+const BINARY_DIFF_PATTERN = /^Binary files /m;
+
+// Conventional commit prefix pattern: feat(scope): or feat:
+const CONVENTIONAL_PREFIX = /^(feat|fix|refactor|docs|chore|perf|test)(\([^)]*\))?!?:/i;
+
+const KEYWORD_RULES: Array<{ pattern: RegExp; category: CommitCategory }> = [
+  { pattern: /\b(add|implement|introduce|create|new feature|support)\b/i, category: 'feat' },
+  { pattern: /\b(fix|resolve|correct|patch|repair|bug|issue|regression)\b/i, category: 'fix' },
+  { pattern: /\b(refactor|clean|extract|reorganize|restructure|simplify|rename|move)\b/i, category: 'refactor' },
+  { pattern: /\b(docs?|readme|changelog|comment|document|guide|tutorial)\b/i, category: 'docs' },
+  { pattern: /\b(bump|upgrade|update dep|dependency|ci|build|release|version|config)\b/i, category: 'chore' },
+  { pattern: /\b(perf|performance|speed|optimize|faster|latency|throughput|cache)\b/i, category: 'perf' },
+  { pattern: /\b(test|spec|coverage|unit test|integration test|e2e)\b/i, category: 'test' },
+];
+
+export function categorizeCommit(message: string): CommitCategory {
+  const match = message.match(CONVENTIONAL_PREFIX);
+  if (match) {
+    return match[1].toLowerCase() as CommitCategory;
+  }
+
+  for (const { pattern, category } of KEYWORD_RULES) {
+    if (pattern.test(message)) return category;
+  }
+
+  return 'other';
+}
+
+function isNoisyFile(filePath: string): boolean {
+  return NOISE_FILE_PATTERNS.some((re) => re.test(filePath));
+}
+
+function globToRegex(pattern: string): RegExp {
+  const escaped = pattern
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*/g, '.*')
+    .replace(/\?/g, '.');
+  return new RegExp(escaped);
+}
+
+function matchesAnyPattern(filePath: string, patterns: string[]): boolean {
+  return patterns.some((p) => {
+    if (p.includes('*') || p.includes('?')) return globToRegex(p).test(filePath);
+    return filePath.includes(p);
+  });
+}
+
+function stripNoisyFilesFromDiff(rawDiff: string, excludePaths?: string[]): string {
+  const hunks = rawDiff.split(/(?=^diff --git )/m);
+  return hunks
+    .filter((hunk) => {
+      if (!hunk.startsWith('diff --git')) return true;
+
+      const match = hunk.match(/^diff --git a\/(.*?) b\//m);
+      if (!match) return true;
+
+      const filePath = match[1];
+      if (isNoisyFile(filePath)) return false;
+      if (BINARY_DIFF_PATTERN.test(hunk)) return false;
+      if (excludePaths?.length && matchesAnyPattern(filePath, excludePaths)) return false;
+      return true;
+    })
+    .join('');
+}
+
+const MAX_DIFF_CHARS = 8000;
+
+export function normalizeDiff(commits: Commit[], config?: Pick<Config, 'excludePaths' | 'focusAreas'>): NormalizedCommit[] {
+  let remainingBudget = MAX_DIFF_CHARS;
+
+  return commits
+    .map((commit): NormalizedCommit | null => {
+      const category = categorizeCommit(commit.message);
+
+      let cleanedFiles = commit.changedFiles.filter((f) => !isNoisyFile(f));
+      if (config?.excludePaths?.length) {
+        cleanedFiles = cleanedFiles.filter((f) => !matchesAnyPattern(f, config.excludePaths!));
+      }
+
+      // If focusAreas is set, drop commits that touch nothing in those areas
+      if (config?.focusAreas?.length) {
+        const touchesFocus = commit.changedFiles.some((f) => matchesAnyPattern(f, config.focusAreas!));
+        if (!touchesFocus) return null;
+      }
+
+      const filteredDiff = stripNoisyFilesFromDiff(commit.rawDiff, config?.excludePaths);
+
+      let diff: string;
+      let diffTruncated = false;
+
+      if (filteredDiff.length <= remainingBudget) {
+        diff = filteredDiff;
+        remainingBudget -= filteredDiff.length;
+      } else if (remainingBudget > 0) {
+        diff = filteredDiff.slice(0, remainingBudget) + '\n... [diff truncated]';
+        remainingBudget = 0;
+        diffTruncated = true;
+      } else {
+        diff = '';
+        diffTruncated = true;
+      }
+
+      return {
+        sha: commit.sha,
+        author: commit.author,
+        timestamp: commit.timestamp,
+        message: commit.message,
+        changedFiles: cleanedFiles,
+        diffStat: commit.diffStat,
+        diff,
+        diffTruncated,
+        category,
+      };
+    })
+    .filter((c): c is NormalizedCommit => c !== null);
+}
+</file>
+
+<file path="src/integrations/extractor.ts">
+import { IssueRef } from './types';
+
+const CLOSING_KEYWORDS = /(?:fix(?:es|ed)?|close[sd]?|resolve[sd]?|complete[sd]?)/i;
+
+// Closing keyword + Linear ID: "Fixes ENG-123"
+const CLOSING_LINEAR_RE = new RegExp(
+  `(${CLOSING_KEYWORDS.source})\\s+([A-Z]{2,10}-\\d+)`,
+  'gi',
+);
+
+// Plain Linear ID mention: "ENG-123"
+const PLAIN_LINEAR_RE = /\b([A-Z]{2,10}-\d+)\b/g;
+
+// GitHub-style issue number: "#42"
+const GITHUB_RE = /#(\d+)\b/g;
+
+export function extractIssueRefs(text: string): IssueRef[] {
+  const refs = new Map<string, IssueRef>();
+
+  // Pass 1: closing keyword + Linear ID (higher priority)
+  let match: RegExpExecArray | null;
+  CLOSING_LINEAR_RE.lastIndex = 0;
+  while ((match = CLOSING_LINEAR_RE.exec(text)) !== null) {
+    const keyword = match[1].toLowerCase();
+    const identifier = match[2].toUpperCase();
+    refs.set(identifier, {
+      raw: match[0],
+      identifier,
+      type: 'linear',
+      closingKeyword: keyword,
+    });
+  }
+
+  // Pass 2: plain Linear ID (only add if not already captured with a closing keyword)
+  PLAIN_LINEAR_RE.lastIndex = 0;
+  while ((match = PLAIN_LINEAR_RE.exec(text)) !== null) {
+    const identifier = match[1].toUpperCase();
+    if (!refs.has(identifier)) {
+      refs.set(identifier, {
+        raw: match[0],
+        identifier,
+        type: 'linear',
+      });
+    }
+  }
+
+  // Pass 3: GitHub-style numbers
+  GITHUB_RE.lastIndex = 0;
+  while ((match = GITHUB_RE.exec(text)) !== null) {
+    const identifier = `#${match[1]}`;
+    if (!refs.has(identifier)) {
+      refs.set(identifier, {
+        raw: match[0],
+        identifier,
+        type: 'github',
+      });
+    }
+  }
+
+  return Array.from(refs.values());
+}
+
+export function extractIssueRefsFromBranch(branchName: string): IssueRef[] {
+  // Replace / and _ separators with spaces, but preserve - so ENG-123 stays intact
+  return extractIssueRefs(branchName.replace(/[/_]/g, ' '));
+}
+</file>
+
+<file path="src/llm/gemini.ts">
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { SummaryLength } from '../config/types';
+import { NormalizedCommit } from '../git/normalizer';
+import { buildSummarizationPrompt } from './prompts';
+
+export class GeminiProvider {
+  private client: GoogleGenerativeAI;
+  private model: string;
+
+  constructor(apiKey: string, model: string) {
+    if (!apiKey) throw new Error('GEMINI_API_KEY is required. Set it via environment variable or `daily-summary config set llm.apiKey <key>`.');
+    this.client = new GoogleGenerativeAI(apiKey);
+    this.model = model;
+  }
+
+  async summarize(commits: NormalizedCommit[], summaryLength: SummaryLength): Promise<string> {
+    if (commits.length === 0) {
+      return 'No commits found in the specified time window.';
+    }
+
+    const prompt = buildSummarizationPrompt(commits, summaryLength);
+    const genModel = this.client.getGenerativeModel({ model: this.model });
+
+    let result;
+    try {
+      result = await genModel.generateContent(prompt);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Gemini API error: ${message}`);
+    }
+
+    const text = result.response.text();
+    if (!text?.trim()) {
+      throw new Error('Gemini returned an empty response. Try a different model or check your API key.');
+    }
+
+    return text.trim();
+  }
+
+  async rawPrompt(prompt: string): Promise<string> {
+    const genModel = this.client.getGenerativeModel({ model: this.model });
+    let result;
+    try {
+      result = await genModel.generateContent(prompt);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Gemini API error: ${message}`);
+    }
+    return result.response.text().trim();
+  }
+}
+</file>
+
+<file path="src/llm/prompts.ts">
+import { SummaryLength, CommitCategory } from '../config/types';
+import { NormalizedCommit } from '../git/normalizer';
+
+// Category display labels (order defines section order in output)
+const CATEGORY_LABELS: Record<CommitCategory, string> = {
+  feat: 'Features',
+  fix: 'Bug Fixes',
+  perf: 'Performance',
+  refactor: 'Refactors & Improvements',
+  test: 'Tests',
+  docs: 'Documentation',
+  chore: 'Chores & Maintenance',
+  other: 'Other Changes',
+};
+
+const CATEGORY_ORDER: CommitCategory[] = ['feat', 'fix', 'perf', 'refactor', 'test', 'docs', 'chore', 'other'];
+
+const LENGTH_INSTRUCTIONS: Record<SummaryLength, string> = {
+  short: `Write 3–5 bullet points covering only the most impactful changes (features and fixes first).
+- Each bullet: max 80 characters
+- One section maximum — no category headers
+- Format: "• [Past-tense action] [brief impact if clear]"`,
+
+  medium: `Write a grouped summary with section headers for each category that has commits.
+- 2–4 bullets per populated section
+- Each bullet: max 100 characters
+- Sections appear in this order (omit empty ones): Features → Bug Fixes → Performance → Refactors & Improvements → Tests → Documentation → Chores & Maintenance
+- Format each bullet: "- [Past-tense action] – [user/team impact, if discernible]"`,
+
+  long: `Write a detailed grouped summary.
+- Open with a 2-sentence "theme" paragraph summarizing the day's overall direction
+- Then provide section headers for each category that has commits
+- Up to 8 bullets per section; each bullet max 120 characters
+- Include file-level detail (e.g., "in auth/provider.ts") where it adds context
+- Sections in order: Features → Bug Fixes → Performance → Refactors & Improvements → Tests → Documentation → Chores & Maintenance
+- Format each bullet: "- [Past-tense action] – [impact or detail]"`,
+};
+
+const SYSTEM_RULES = `You are a senior engineering writer generating a professional daily stand-up summary from git commit data.
+
+VOICE & STYLE RULES (follow strictly):
+- Use past-tense imperative voice: "Added X", "Fixed Y", "Improved Z" — NOT "Adding X" or "We added X"
+- Be specific about what changed and why it matters; avoid vague language ("cleaned up code", "made improvements")
+- Do not invent performance metrics, numbers, or impact claims that are not present in the commit messages or diffs
+- Do not include commit SHAs, author names, or timestamps in the output
+- Omit trivial commits: whitespace-only changes, lock file bumps, minor version pins with no feature impact
+- If a commit message includes "BREAKING CHANGE" or "!", prefix that bullet with "⚠ BREAKING:"
+- If a commit message mentions a blocker, dependency wait, or TODO, prefix that bullet with "🔴 BLOCKED:"
+- Write for a technical audience (engineers and tech leads) — be precise but concise
+
+QUALITY BAR:
+- A reader should understand what shipped, what broke, and what improved in under 30 seconds
+- Each bullet should be independently meaningful — no vague fillers
+- Prioritize user-visible and system-visible impact over implementation details`;
+
+function formatCommitForPrompt(c: NormalizedCommit): string {
+  const stat = `+${c.diffStat.insertions}/-${c.diffStat.deletions}`;
+  const files = c.changedFiles.length > 0 ? ` → ${c.changedFiles.slice(0, 4).join(', ')}${c.changedFiles.length > 4 ? ', …' : ''}` : '';
+  const diff = c.diff ? `\n  diff:\n${c.diff.split('\n').slice(0, 20).map((l) => '  ' + l).join('\n')}` : '';
+  return `[${c.category}] ${c.message} (${stat})${files}${diff}`;
+}
+
+function groupCommitsByCategory(commits: NormalizedCommit[]): Map<CommitCategory, NormalizedCommit[]> {
+  const groups = new Map<CommitCategory, NormalizedCommit[]>();
+  for (const commit of commits) {
+    const existing = groups.get(commit.category) ?? [];
+    existing.push(commit);
+    groups.set(commit.category, existing);
+  }
+  return groups;
+}
+
+export function buildSummarizationPrompt(commits: NormalizedCommit[], length: SummaryLength): string {
+  const groups = groupCommitsByCategory(commits);
+
+  // Build the commit block in category order so the LLM receives pre-organized input
+  const orderedSections = CATEGORY_ORDER
+    .filter((cat) => groups.has(cat))
+    .map((cat) => {
+      const label = CATEGORY_LABELS[cat];
+      const items = groups.get(cat)!.map((c) => `  ${formatCommitForPrompt(c)}`).join('\n');
+      return `### ${label}\n${items}`;
+    })
+    .join('\n\n');
+
+  const commitBlock = orderedSections || commits.map((c) => formatCommitForPrompt(c)).join('\n');
+
+  return `${SYSTEM_RULES}
+
+---
+
+OUTPUT FORMAT:
+${LENGTH_INSTRUCTIONS[length]}
+
+---
+
+COMMITS (pre-classified by type):
+
+${commitBlock}
+
+---
+
+Write the stand-up summary now. Follow the format and rules above exactly.`;
+}
+</file>
+
+<file path="src/report/exporter.ts">
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { Config, OutputFormat } from '../config/types';
+import { Report } from './generator';
+import { buildHtml } from './html';
+
+function resolveOutputDir(config: Config): string {
+  const dir = config.output.dir.replace(/^~/, os.homedir());
+  return path.resolve(dir);
+}
+
+export function exportReport(report: Report, config: Config, format: OutputFormat = 'markdown'): string[] {
+  const outputDir = resolveOutputDir(config);
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  const base = `${report.date}-${report.repoName}`;
+  const written: string[] = [];
+
+  if (format === 'markdown' || format === 'both') {
+    const mdPath = path.join(outputDir, `${base}.md`);
+    fs.writeFileSync(mdPath, report.content, 'utf8');
+    written.push(mdPath);
+  }
+
+  if (format === 'html' || format === 'both') {
+    const htmlPath = path.join(outputDir, `${base}.html`);
+    fs.writeFileSync(htmlPath, buildHtml(report), 'utf8');
+    written.push(htmlPath);
+  }
+
+  return written;
+}
+
+export function getLastReportPath(config: Config, targetDate?: string): string | null {
+  const outputDir = resolveOutputDir(config);
+
+  if (!fs.existsSync(outputDir)) return null;
+
+  const files = fs
+    .readdirSync(outputDir)
+    .filter((f) => f.endsWith('.md'))
+    .sort()
+    .reverse();
+
+  if (files.length === 0) return null;
+
+  if (targetDate) {
+    const match = files.find((f) => f.startsWith(targetDate));
+    return match ? path.join(outputDir, match) : null;
+  }
+
+  return path.join(outputDir, files[0]);
+}
+
+export function listAllReports(config: Config): Array<{ date: string; repoName: string; filePath: string }> {
+  const outputDir = resolveOutputDir(config);
+
+  if (!fs.existsSync(outputDir)) return [];
+
+  return fs
+    .readdirSync(outputDir)
+    .filter((f) => f.endsWith('.md'))
+    .sort()
+    .reverse()
+    .map((f) => {
+      const parts = f.replace(/\.md$/, '').split('-');
+      const date = parts.slice(0, 3).join('-');
+      const repoName = parts.slice(3).join('-') || 'unknown';
+      return { date, repoName, filePath: path.join(outputDir, f) };
+    });
+}
+</file>
+
+<file path="src/report/html.ts">
+import { CommitCategory } from '../config/types';
+import { NormalizedCommit } from '../git/normalizer';
+import { TicketGroup } from '../integrations/types';
+import { Report } from './generator';
+
+const CATEGORY_LABELS: Record<CommitCategory, string> = {
+  feat: 'Features',
+  fix: 'Bug Fixes',
+  perf: 'Performance',
+  refactor: 'Refactors & Improvements',
+  test: 'Tests',
+  docs: 'Documentation',
+  chore: 'Chores & Maintenance',
+  other: 'Other Changes',
+};
+
+const CATEGORY_ORDER: CommitCategory[] = ['feat', 'fix', 'perf', 'refactor', 'test', 'docs', 'chore', 'other'];
+
+const CATEGORY_COLORS: Record<CommitCategory, string> = {
+  feat: '#22c55e',
+  fix: '#ef4444',
+  perf: '#f59e0b',
+  refactor: '#8b5cf6',
+  test: '#06b6d4',
+  docs: '#3b82f6',
+  chore: '#6b7280',
+  other: '#9ca3af',
+};
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function renderSummaryAsHtml(summary: string): string {
+  const lines = summary.split('\n');
+  const result: string[] = [];
+  let inList = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (inList) { result.push('</ul>'); inList = false; }
+      continue;
+    }
+    if (trimmed.startsWith('### ') || trimmed.startsWith('## ')) {
+      if (inList) { result.push('</ul>'); inList = false; }
+      const level = trimmed.startsWith('### ') ? 3 : 2;
+      result.push(`<h${level}>${escapeHtml(trimmed.replace(/^#+\s*/, ''))}</h${level}>`);
+    } else if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
+      if (!inList) { result.push('<ul>'); inList = true; }
+      result.push(`<li>${escapeHtml(trimmed.slice(2))}</li>`);
+    } else {
+      if (inList) { result.push('</ul>'); inList = false; }
+      result.push(`<p>${escapeHtml(trimmed)}</p>`);
+    }
+  }
+  if (inList) result.push('</ul>');
+  return result.join('\n');
+}
+
+function buildCommitRows(commits: NormalizedCommit[]): string {
+  const groups = new Map<CommitCategory, NormalizedCommit[]>();
+  for (const c of commits) {
+    const list = groups.get(c.category) ?? [];
+    list.push(c);
+    groups.set(c.category, list);
+  }
+
+  return CATEGORY_ORDER
+    .filter((cat) => groups.has(cat))
+    .map((cat) => {
+      const color = CATEGORY_COLORS[cat];
+      const label = CATEGORY_LABELS[cat];
+      const rows = groups.get(cat)!
+        .map((c) => {
+          const stat = `+${c.diffStat.insertions}/-${c.diffStat.deletions}`;
+          return `<tr>
+          <td><code>${escapeHtml(c.sha.slice(0, 7))}</code></td>
+          <td>${escapeHtml(c.message)}</td>
+          <td class="stat">${escapeHtml(stat)}</td>
+        </tr>`;
+        })
+        .join('\n');
+
+      return `<section class="category">
+      <h3 style="border-left: 4px solid ${color}; padding-left: 10px;">${escapeHtml(label)}</h3>
+      <table>
+        <thead><tr><th>SHA</th><th>Message</th><th>Changes</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </section>`;
+    })
+    .join('\n');
+}
+
+const PRIORITY_BADGE_COLOR: Record<number, string> = {
+  1: '#ef4444',
+  2: '#f97316',
+  3: '#eab308',
+  4: '#6b7280',
+};
+
+const PRIORITY_LABELS: Record<number, string> = {
+  0: 'None',
+  1: 'Urgent',
+  2: 'High',
+  3: 'Medium',
+  4: 'Low',
+};
+
+function buildTicketGroups(groups: TicketGroup[]): string {
+  return groups
+    .map((group) => {
+      const priorityBadge = group.priority !== undefined && group.priority > 0
+        ? `<span class="badge" style="background:${PRIORITY_BADGE_COLOR[group.priority] ?? '#9ca3af'}">${escapeHtml(PRIORITY_LABELS[group.priority] ?? `P${group.priority}`)}</span>`
+        : '';
+      const statusBadge = group.status
+        ? `<span class="badge badge-status">${escapeHtml(group.status)}</span>`
+        : '';
+      const titleHtml = group.url
+        ? `<a href="${escapeHtml(group.url)}" target="_blank" rel="noopener">${escapeHtml(group.identifier)}: ${escapeHtml(group.title)}</a>`
+        : `${escapeHtml(group.identifier)}: ${escapeHtml(group.title)}`;
+      const cycleHtml = group.cycleNumber !== undefined
+        ? `<span class="cycle">Sprint ${group.cycleNumber}${group.cycleTitle ? `: ${escapeHtml(group.cycleTitle)}` : ''}</span>`
+        : '';
+
+      const rows = group.commits
+        .map((c) => {
+          const stat = `+${c.diffStat.insertions}/-${c.diffStat.deletions}`;
+          return `<tr>
+            <td><code>${escapeHtml(c.sha.slice(0, 7))}</code></td>
+            <td>${escapeHtml(c.message)}</td>
+            <td class="stat">${escapeHtml(stat)}</td>
+          </tr>`;
+        })
+        .join('\n');
+
+      return `<div class="ticket-group">
+        <div class="ticket-header">
+          <span class="ticket-title">${titleHtml}</span>
+          ${priorityBadge}${statusBadge}${cycleHtml}
+        </div>
+        <table>
+          <thead><tr><th>SHA</th><th>Message</th><th>Changes</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    })
+    .join('\n');
+}
+
+const CSS = `
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; line-height: 1.6; color: #1a1a2e; background: #f8f9fa; padding: 0; }
+  .page { max-width: 900px; margin: 0 auto; padding: 32px 24px; }
+  header { background: #1a1a2e; color: #fff; padding: 28px 32px; border-radius: 8px; margin-bottom: 28px; }
+  header h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 10px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 16px; font-size: 0.85rem; opacity: 0.85; }
+  .meta span { background: rgba(255,255,255,0.12); padding: 3px 10px; border-radius: 20px; }
+  .card { background: #fff; border-radius: 8px; border: 1px solid #e5e7eb; padding: 24px 28px; margin-bottom: 24px; }
+  .card h2 { font-size: 1.1rem; font-weight: 600; color: #374151; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #e5e7eb; }
+  .summary-body p { margin-bottom: 10px; }
+  .summary-body h2, .summary-body h3 { margin: 18px 0 8px; font-size: 1rem; font-weight: 600; color: #111827; }
+  .summary-body ul { padding-left: 20px; margin-bottom: 10px; }
+  .summary-body li { margin-bottom: 4px; }
+  .category { margin-bottom: 20px; }
+  .category h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 10px; color: #111827; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  thead th { background: #f3f4f6; text-align: left; padding: 8px 12px; font-weight: 600; font-size: 0.8rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; }
+  tbody tr:nth-child(even) { background: #fafafa; }
+  td { padding: 8px 12px; vertical-align: top; border-bottom: 1px solid #f0f0f0; }
+  code { font-family: 'SFMono-Regular', Consolas, monospace; background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+  .stat { white-space: nowrap; font-family: monospace; color: #6b7280; font-size: 0.85em; }
+  footer { text-align: center; font-size: 0.78rem; color: #9ca3af; margin-top: 32px; }
+  .ticket-group { margin-bottom: 24px; }
+  .ticket-header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; font-size: 0.95rem; font-weight: 600; color: #111827; }
+  .ticket-header a { color: #1d4ed8; text-decoration: none; }
+  .ticket-header a:hover { text-decoration: underline; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; color: #fff; }
+  .badge-status { background: #374151; }
+  .cycle { font-size: 0.8rem; color: #6b7280; font-weight: 400; }
+`;
+
+export function buildHtml(report: Report): string {
+  const summaryHtml = renderSummaryAsHtml(report.summary);
+  const commitRows = buildCommitRows(report.commits);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Stand-up — ${escapeHtml(report.date)}</title>
+  <style>${CSS}</style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <h1>Daily Stand-up &mdash; ${escapeHtml(report.date)}</h1>
+      <div class="meta">
+        <span>Repo: ${escapeHtml(report.repoName)}</span>
+        <span>Branch: ${escapeHtml(report.branch)}</span>
+        <span>Period: last ${escapeHtml(report.timeWindow)}</span>
+        <span>${report.commitCount} commit${report.commitCount !== 1 ? 's' : ''}</span>
+      </div>
+    </header>
+
+    <div class="card">
+      <h2>Summary</h2>
+      <div class="summary-body">
+        ${summaryHtml}
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Commits by Category</h2>
+      ${commitRows || '<p><em>No commits in this period.</em></p>'}
+    </div>
+
+    ${report.ticketGroups && report.ticketGroups.length > 0 ? `
+    <div class="card">
+      <h2>By Issue</h2>
+      ${buildTicketGroups(report.ticketGroups)}
+    </div>` : ''}
+
+    <footer>Generated by daily-summary &bull; ${escapeHtml(new Date().toISOString())}</footer>
+  </div>
+</body>
+</html>`;
+}
+</file>
+
+<file path=".gitignore">
+.agents/
+.claude/
+agent-skills/
+install.sh
+claude-install.log
+.plans/
+node_modules/
+dist/
+.env
+*.daily-summary.json
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "sourceMap": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "agent-skills"]
+}
+</file>
+
+<file path="src/cli/commands/docs.ts">
+import path from 'path';
+import { loadConfig } from '../../config/loader';
+import { ingestCommits } from '../../git/ingestion';
+import { normalizeDiff } from '../../git/normalizer';
+import { GeminiProvider } from '../../llm/gemini';
+import { detectDocSignals } from '../../docs/detector';
+import { generateDocTasks } from '../../docs/generator';
+import { exportDocTasks } from '../../docs/exporter';
+import { openInEditor } from '../review';
+import { DocTask, DocExportFormat } from '../../docs/types';
+import { LinearIntegrationClient } from '../../integrations/linear/client';
+
+interface DocsOptions {
+  since?: string;
+  branch?: string;
+  repo?: string;
+  review: boolean;
+  format?: string;
+  llm: boolean;
+  createIssues: boolean;
+}
+
+const SEVERITY_COLOR: Record<string, string> = {
+  high: '\x1b[31m',    // red
+  medium: '\x1b[33m',  // yellow
+  low: '\x1b[36m',     // cyan
+};
+const RESET = '\x1b[0m';
+const BOLD = '\x1b[1m';
+const DIM = '\x1b[2m';
+
+function colorSeverity(sev: string): string {
+  return `${SEVERITY_COLOR[sev] ?? ''}${BOLD}[${sev.toUpperCase()}]${RESET}`;
+}
+
+function printTask(task: DocTask, index: number, total: number): void {
+  const bar = '─'.repeat(54);
+  console.log(`\n${BOLD}┌${bar}┐${RESET}`);
+  console.log(`${BOLD}│${RESET}  Doc Task ${index + 1} of ${total}  ${colorSeverity(task.severity)} · ${task.category.padEnd(16)}${BOLD}│${RESET}`);
+  console.log(`${BOLD}└${bar}┘${RESET}`);
+  console.log();
+  console.log(`  ${DIM}Commit:${RESET}  ${task.commitMessage}`);
+  console.log(`  ${DIM}File:${RESET}    ${task.triggerFile}`);
+  console.log(`  ${DIM}Signal:${RESET}  ${task.description}`);
+  console.log();
+  console.log(`  ${BOLD}${task.title}${RESET}`);
+  console.log();
+  console.log(`  Action items:`);
+  for (const item of task.actionItems) {
+    console.log(`    □ ${item}`);
+  }
+  if (task.suggestedDocFiles.length > 0) {
+    console.log();
+    console.log(`  ${DIM}Suggested files:${RESET} ${task.suggestedDocFiles.join(', ')}`);
+  }
+  console.log();
+}
+
+async function promptKey(prompt: string): Promise<string> {
+  process.stdout.write(prompt);
+  return new Promise((resolve) => {
+    if (!process.stdin.isTTY) {
+      // Non-interactive: default to accept
+      process.stdout.write('a\n');
+      resolve('a');
+      return;
+    }
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+    process.stdin.setEncoding('utf8');
+    const handler = (key: string) => {
+      process.stdin.setRawMode(false);
+      process.stdin.pause();
+      process.stdin.removeListener('data', handler);
+      process.stdout.write(key + '\n');
+      resolve(key.toLowerCase());
+    };
+    process.stdin.once('data', handler);
+  });
+}
+
+async function reviewTasks(tasks: DocTask[]): Promise<DocTask[]> {
+  const reviewed = [...tasks];
+
+  for (let i = 0; i < reviewed.length; i++) {
+    const task = reviewed[i];
+    printTask(task, i, reviewed.length);
+
+    const key = await promptKey(`  ${BOLD}[A]ccept  [R]eject  [E]dit  [S]kip${RESET}  (a/r/e/s) > `);
+
+    if (key === 'a') {
+      reviewed[i] = { ...task, status: 'accepted' };
+      console.log('  ✓ Accepted');
+    } else if (key === 'r') {
+      reviewed[i] = { ...task, status: 'rejected' };
+      console.log('  ✗ Rejected');
+    } else if (key === 'e') {
+      const jsonRepresentation = JSON.stringify(
+        { title: task.title, description: task.description, actionItems: task.actionItems },
+        null,
+        2,
+      );
+      try {
+        const edited = await openInEditor(jsonRepresentation);
+        const parsed = JSON.parse(edited) as {
+          title?: string;
+          description?: string;
+          actionItems?: string[];
+        };
+        reviewed[i] = {
+          ...task,
+          status: 'accepted',
+          title: parsed.title ?? task.title,
+          description: parsed.description ?? task.description,
+          actionItems: parsed.actionItems ?? task.actionItems,
+        };
+        console.log('  ✓ Accepted (edited)');
+      } catch {
+        reviewed[i] = { ...task, status: 'accepted' };
+        console.log('  ✓ Accepted (edit failed, using original)');
+      }
+    } else {
+      // skip or any other key
+      console.log('  → Skipped');
+    }
+  }
+
+  return reviewed;
+}
+
+function buildIssueBody(task: DocTask): string {
+  const lines = [
+    task.description,
+    '',
+    `**Commit:** \`${task.commitSha.slice(0, 7)}\` ${task.commitMessage}`,
+    `**Trigger file:** \`${task.triggerFile}\``,
+    '',
+    '## Action Items',
+    ...task.actionItems.map((item) => `- [ ] ${item}`),
+  ];
+  if (task.suggestedDocFiles.length > 0) {
+    lines.push('', '## Suggested Documentation Files', ...task.suggestedDocFiles.map((f) => `- \`${f}\``));
+  }
+  return lines.join('\n');
+}
+
+async function promptYesNo(prompt: string): Promise<boolean> {
+  process.stdout.write(prompt);
+  return new Promise((resolve) => {
+    if (!process.stdin.isTTY) {
+      process.stdout.write('n\n');
+      resolve(false);
+      return;
+    }
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+    process.stdin.setEncoding('utf8');
+    const handler = (key: string) => {
+      process.stdin.setRawMode(false);
+      process.stdin.pause();
+      process.stdin.removeListener('data', handler);
+      const answer = key.toLowerCase();
+      process.stdout.write(answer + '\n');
+      resolve(answer === 'y');
+    };
+    process.stdin.once('data', handler);
+  });
+}
+
+async function createLinearIssues(
+  tasks: DocTask[],
+  client: LinearIntegrationClient,
+  teamId: string,
+): Promise<DocTask[]> {
+  const result = [...tasks];
+  for (let i = 0; i < result.length; i++) {
+    const task = result[i];
+    if (task.status !== 'accepted') continue;
+
+    const yes = await promptYesNo(
+      `  ${BOLD}Create Linear issue for:${RESET} "${task.title}" (y/n) > `,
+    );
+    if (!yes) continue;
+
+    try {
+      const { identifier, url } = await client.createIssue({
+        title: task.title,
+        description: buildIssueBody(task),
+        teamId,
+        priority: task.severity === 'high' ? 2 : task.severity === 'medium' ? 3 : 4,
+      });
+      result[i] = { ...task, linearIssueUrl: url, linearIssueIdentifier: identifier };
+      console.log(`  ✓ Created ${identifier}: ${url}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`  ✗ Failed to create issue: ${message}`);
+    }
+  }
+  return result;
+}
+
+export async function docsCommand(options: DocsOptions): Promise<void> {
+  const config = loadConfig();
+  if (options.since) config.timeWindow = options.since;
+  if (options.branch) config.branch = options.branch;
+  if (options.repo) config.repoPath = options.repo;
+
+  const format = (options.format ?? 'markdown') as DocExportFormat;
+  const repoName = path.basename(path.resolve(config.repoPath));
+  const date = new Date().toISOString().split('T')[0];
+
+  console.log(`Scanning commits on "${config.branch}" since ${config.timeWindow}...`);
+  const commits = ingestCommits(config, { since: config.timeWindow, branch: config.branch });
+
+  if (commits.length === 0) {
+    console.log('No commits found in the specified time window.');
+    return;
+  }
+
+  const normalized = normalizeDiff(commits, config);
+  console.log(`Analyzing ${normalized.length} commit(s) for documentation signals...`);
+
+  const signals = detectDocSignals(normalized);
+
+  if (signals.length === 0) {
+    console.log('No documentation tasks detected. Looks like no doc-impacting changes in this period.');
+    return;
+  }
+
+  console.log(`Found ${signals.length} potential documentation task(s).`);
+
+  // Optional LLM enrichment
+  let provider: GeminiProvider | undefined;
+  if (options.llm && config.llm.apiKey && config.llm.model) {
+    provider = new GeminiProvider(config.llm.apiKey, config.llm.model);
+    console.log(`Enriching task descriptions with ${config.llm.model}...`);
+  } else if (options.llm) {
+    console.log('LLM enrichment requested but GEMINI_API_KEY or GEMINI_MODEL not set — using templates.');
+  }
+
+  let tasks = await generateDocTasks(signals, config.repoPath, options.llm && !!provider, provider);
+
+  if (!options.review) {
+    // Auto-accept all
+    tasks = tasks.map((t) => ({ ...t, status: 'accepted' }));
+  } else {
+    tasks = await reviewTasks(tasks);
+  }
+
+  const accepted = tasks.filter((t) => t.status === 'accepted').length;
+  const rejected = tasks.filter((t) => t.status === 'rejected').length;
+  const skipped = tasks.filter((t) => t.status === 'pending').length;
+
+  console.log(`\nReview complete: Accepted ${accepted} / Rejected ${rejected} / Skipped ${skipped}`);
+
+  if (accepted === 0) {
+    console.log('No tasks accepted — nothing to export.');
+    return;
+  }
+
+  if (options.createIssues) {
+    const linearKey = config.integrations?.linear?.apiKey;
+    const teamId = config.integrations?.linear?.teamId;
+
+    if (!linearKey) {
+      console.warn('\nWarning: --create-issues requires LINEAR_API_KEY. Set it and try again.');
+      console.warn('  export LINEAR_API_KEY=<key>');
+    } else if (!teamId) {
+      console.warn('\nWarning: --create-issues requires a Linear team ID. Configure it with:');
+      console.warn('  daily-summary config set integrations.linear.teamId <team-id>');
+    } else {
+      console.log('\nCreating Linear issues for accepted tasks...');
+      const linearClient = new LinearIntegrationClient(linearKey);
+      tasks = await createLinearIssues(tasks, linearClient, teamId);
+    }
+  }
+
+  const paths = exportDocTasks(tasks, repoName, date, config.branch, config.timeWindow, format);
+  for (const p of paths) {
+    console.log(`Doc tasks saved to: ${p}`);
+  }
+}
+</file>
+
+<file path="package.json">
+{
+  "name": "daily-commit-summarizer",
+  "version": "0.1.0",
+  "description": "Generate daily stand-up summaries from git commits using Gemini AI",
+  "type": "commonjs",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "git",
+    "standup",
+    "summary",
+    "gemini",
+    "ai",
+    "cli",
+    "developer-tools",
+    "linear"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vedantnandoskar/daily-commit-summarizer.git"
+  },
+  "bin": {
+    "daily-summary": "./dist/bin/daily-summary.js"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc && chmod +x dist/bin/daily-summary.js",
+    "prepare": "npm run build",
+    "dev": "tsx src/bin/daily-summary.ts",
+    "start": "node dist/bin/daily-summary.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "@linear/sdk": "^84.0.0",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0"
+  }
+}
+</file>
+
+<file path="README.md">
+# daily-commit-summarizer
+
+`daily-commit-summarizer` is a TypeScript CLI that turns local Git history into polished daily stand-up summaries. It scans commits for a configurable time window, normalizes noisy diffs, asks Gemini to summarize the work, and exports Markdown or HTML reports. It can also enrich summaries with Linear issue context and detect documentation follow-up tasks from recent code changes.
+
+The project is built for developers who want a low-friction way to answer, "What did I ship recently, and what should I tell the team?"
+
+An example of the output below -
+
+```markdown
+## Summary
+
+**Features**
+- Added OAuth2 provider support with PKCE flow
+
+**Bug Fixes**
+- Prevented empty query errors in search endpoint
+
+**Chores**
+- Upgraded Node.js runtime to v20.10 LTS
+
+## By Issue
+
+### ENG-123: Add OAuth2 provider support _(In Progress / High)_
+- `1aa6217` feat: add OAuth2 provider support (+45/-3)
+```
+
+## Table of Contents
+
+- [What It Does](#what-it-does)
+- [Architecture](#architecture)
+- [Directory Structure](#directory-structure)
+- [Requirements](#requirements)
+- [Local Setup](#local-setup)
+- [Environment Variables](#environment-variables)
+- [Configuration](#configuration)
+- [Commands](#commands)
+- [Linear Integration](#linear-integration)
+- [Generated Files](#generated-files)
+- [Troubleshooting](#troubleshooting)
+- [Development Notes](#development-notes)
+- [License](#license)
+
+## What It Does
+
+- Scans commits from a local Git repository for a window such as `24h`, `2d`, or `1w`.
+- Filters noisy files, binary diffs, lockfiles, build output, and optional repo-specific exclusions.
+- Categorizes work into features, fixes, tests, docs, chores, performance, refactors, and other changes.
+- Uses Gemini to produce a stand-up-ready summary.
+- Exports reports to `~/.daily-summary/reports/` as Markdown, HTML, or both.
+- Optionally groups commits by Linear issue when commit messages or branches include identifiers like `ENG-123`.
+- Detects documentation-impacting changes and exports reviewable doc tasks.
+- Supports local configuration, global configuration, interactive setup, history lookup, and scheduled daily runs.
+
+## Architecture
+
+### Report Generation Flow
+
+```mermaid
+flowchart TD
+  A["CLI command: daily-summary run"] --> B["Load configuration"]
+  B --> C["Read git commits"]
+  C --> D["Normalize diffs and categorize commits"]
+  D --> E["Build Gemini prompt"]
+  E --> F["Generate summary with Gemini"]
+  D --> G{"--with-linear?"}
+  G -->|Yes| H["Fetch Linear issue metadata"]
+  G -->|No| I["Skip issue enrichment"]
+  F --> J["Render report Markdown"]
+  H --> J
+  I --> J
+  J --> K{"Editor review enabled?"}
+  K -->|Yes| L["Open report in editor"]
+  K -->|No| M["Use generated report"]
+  L --> N["Export report"]
+  M --> N
+  N --> O["Write Markdown / HTML files"]
+```
+
+### Documentation Task Flow
+
+```mermaid
+flowchart TD
+  A["CLI command: daily-summary docs"] --> B["Load configuration"]
+  B --> C["Read git commits"]
+  C --> D["Normalize diffs"]
+  D --> E["Detect documentation signals"]
+  E --> F{"Signals found?"}
+  F -->|No| G["Exit with no tasks"]
+  F -->|Yes| H["Generate doc task candidates"]
+  H --> I{"LLM enabled and configured?"}
+  I -->|Yes| J["Enrich task descriptions with Gemini"]
+  I -->|No| K["Use template descriptions"]
+  J --> L["Interactive review or auto-accept"]
+  K --> L
+  L --> M{"--create-issues?"}
+  M -->|Yes| N["Prompt to create Linear issues"]
+  M -->|No| O["Skip issue creation"]
+  N --> P["Export accepted tasks"]
+  O --> P
+  P --> Q["Write Markdown / JSON files"]
+```
+
+### Configuration Resolution
+
+```mermaid
+flowchart TD
+  A["Built-in defaults"] --> B["Global JSON: ~/.daily-summary/config.json"]
+  B --> C["Repo JSON: .daily-summary.json"]
+  D["Existing shell environment"] --> E["Process env"]
+  F["Global env file: ~/.daily-summary/.env"] --> E
+  G["Repo env file: ./.env"] --> E
+  E --> H["GEMINI_API_KEY / GEMINI_MODEL / LINEAR_API_KEY"]
+  C --> I["Merged runtime config"]
+  H --> I
+```
+
+The env file loader only fills keys that are not already present in the process environment. In practice, exported shell variables win over env files. JSON config is merged separately, with repo-local `.daily-summary.json` overriding global JSON defaults.
+
+## Directory Structure
+
+```text
+.
+|-- src/
+|   |-- bin/
+|   |   `-- daily-summary.ts        # CLI executable entrypoint
+|   |-- cli/
+|   |   |-- index.ts                # Commander command registration
+|   |   |-- review.ts               # Editor-based review helper
+|   |   `-- commands/               # run, docs, config, doctor, export, history, schedule
+|   |-- config/
+|   |   |-- loader.ts               # Defaults, env files, JSON config, masking helpers
+|   |   `-- types.ts                # Runtime configuration types
+|   |-- docs/
+|   |   |-- detector.ts             # Documentation-impact signal rules
+|   |   |-- generator.ts            # Doc task generation and optional LLM enrichment
+|   |   `-- exporter.ts             # Markdown / JSON doc task export and docs-repo push
+|   |-- git/
+|   |   |-- ingestion.ts            # Git log/show collection
+|   |   `-- normalizer.ts           # Diff cleanup, categorization, budget limiting
+|   |-- integrations/
+|   |   |-- extractor.ts            # Issue reference extraction from commits/branches
+|   |   `-- linear/client.ts        # Linear API wrapper
+|   |-- llm/
+|   |   |-- gemini.ts               # Gemini provider
+|   |   `-- prompts.ts              # Summary prompt construction
+|   `-- report/
+|       |-- generator.ts            # Report model and Markdown rendering
+|       |-- exporter.ts             # Report file writing and lookup
+|       `-- html.ts                 # HTML report rendering
+|-- .env.example                    # Local env template for source checkout
+|-- package.json                    # npm scripts, package metadata, CLI binary mapping
+|-- tsconfig.json                   # TypeScript compiler configuration
+`-- vitest.config.ts                # Test runner configuration
+```
+
+## Requirements
+
+- Node.js 18 or newer
+- npm
+- Git available in `PATH`
+- A Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey)
+- Optional: a Linear API key for issue enrichment and doc-task issue creation
+
+## Local Setup
+
+Use this flow when evaluating the project from source.
+
+```bash
+git clone https://github.com/vedantnandoskar/daily-commit-summarizer.git
+cd daily-commit-summarizer
+npm install
+cp .env.example .env
+```
+
+Edit `.env` and set at least:
+
+```bash
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-2.0-flash-lite
+```
+
+Then verify the setup:
+
+```bash
+npm run dev -- doctor
+```
+
+Generate a report for this repository:
+
+```bash
+npm run dev -- run --repo . --since 24h --no-edit
+```
+
+Build and run the compiled CLI:
+
+```bash
+npm run build
+npm start -- run --repo . --since 24h --no-edit
+```
+
+For local CLI-style testing, you can also link the package:
+
+```bash
+npm link
+daily-summary doctor
+daily-summary run --repo . --since 24h --no-edit
+```
+
+Reports are written to `~/.daily-summary/reports/` by default.
+
+## Environment Variables
+
+| Variable | Required | Used by | Description |
+|---|---:|---|---|
+| `GEMINI_API_KEY` | Yes | `run`, `doctor`, `docs` with LLM enrichment | Gemini API key used for summary generation and optional doc-task enrichment. |
+| `GEMINI_MODEL` | Yes | `run`, `doctor`, `docs` with LLM enrichment | Gemini model name. The setup wizard defaults to `gemini-2.0-flash-lite`. |
+| `LINEAR_API_KEY` | No | `run --with-linear`, `docs --create-issues`, `doctor` | Linear personal API key for fetching issue metadata or creating doc-task issues. |
+
+Environment files:
+
+| File | Purpose |
+|---|---|
+| `.env.example` | Safe template for local development. Commit this file. |
+| `.env` | Repo-local secrets for source checkouts. Do not commit this file. |
+| `~/.daily-summary/.env` | Global secrets created by `daily-summary config init`. Useful when running the CLI across many repos. |
+
+## Configuration
+
+The CLI starts with built-in defaults, merges JSON config, then applies supported environment variables.
+
+Default runtime config:
+
+| Field | Default | Description |
+|---|---|---|
+| `repoPath` | `.` | Repository to scan. |
+| `branch` | `main` | Branch passed to `git log`. |
+| `timeWindow` | `24h` | Commit window. Supports values like `30m`, `24h`, `2d`, `1w`, or a Git-compatible date string. |
+| `llm.summaryLength` | `medium` | Summary length: `short`, `medium`, or `long`. |
+| `output.dir` | `~/.daily-summary/reports` | Destination for generated reports. |
+| `output.format` | `markdown` via command default | Report format: `markdown`, `html`, or `both`. |
+
+Config files:
+
+| File | Scope | Notes |
+|---|---|---|
+| `~/.daily-summary/config.json` | Global | Written by `daily-summary config set --global`. Good for non-secret defaults shared across repos. |
+| `.daily-summary.json` | Repo-local | Written by `daily-summary config set`. Good for repo-specific defaults. |
+
+Example repo-local `.daily-summary.json`:
+
+```json
+{
+  "branch": "main",
+  "timeWindow": "24h",
+  "excludePaths": ["**/package-lock.json", "**/*.snap"],
+  "focusAreas": ["src/", "api/"],
+  "llm": {
+    "summaryLength": "medium"
+  },
+  "output": {
+    "format": "both",
+    "dir": "~/.daily-summary/reports"
+  },
+  "integrations": {
+    "linear": {
+      "teamId": "team-id-for-doc-task-creation"
+    },
+    "docsRepo": {
+      "path": "/path/to/docs-repo",
+      "outputDir": "doc-tasks",
+      "autoCommit": false
+    }
+  }
+}
+```
+
+Configuration keys:
+
+| Key | Description |
+|---|---|
+| `branch` | Default branch to scan. |
+| `timeWindow` | Default commit window. |
+| `repoPath` | Default repo path when `--repo` is omitted. |
+| `excludePaths` | Array of patterns or substrings excluded from normalized diffs. |
+| `focusAreas` | Array of patterns or substrings; commits outside these areas are skipped. |
+| `llm.model` | Model name when set through JSON config. Env `GEMINI_MODEL` also works and is preferred for local setup. |
+| `llm.summaryLength` | `short`, `medium`, or `long`. |
+| `output.dir` | Report output directory. `~` is expanded when exporting reports. |
+| `output.format` | `markdown`, `html`, or `both`. |
+| `integrations.linear.teamId` | Linear team ID required for `docs --create-issues`. |
+| `integrations.docsRepo.path` | Local docs repository path for `daily-summary docs push`. |
+| `integrations.docsRepo.outputDir` | Subdirectory inside the docs repo. Defaults to `doc-tasks`. |
+| `integrations.docsRepo.autoCommit` | Whether `docs push` should commit generated doc-task files. |
+
+Secrets should live in `.env`, `~/.daily-summary/.env`, or exported shell variables, not in committed JSON config.
+
+## Commands
+
+### npm Scripts
+
+| Command | Description |
+|---|---|
+| `npm install` | Install dependencies. |
+| `npm run dev -- <command>` | Run the TypeScript CLI directly with `tsx`. |
+| `npm run build` | Compile TypeScript and mark the built CLI executable. |
+| `npm start -- <command>` | Run the compiled CLI from `dist/`. |
+| `npm test` | Run the Vitest test suite. |
+| `npm run typecheck` | Run TypeScript without emitting files. |
+
+### CLI Commands
+
+| Command | Description |
+|---|---|
+| `daily-summary run` | Scan commits and generate a stand-up summary. |
+| `daily-summary docs` | Detect documentation tasks from recent commits and review them interactively. |
+| `daily-summary docs push` | Push saved doc-task Markdown into a configured local docs repo. |
+| `daily-summary doctor` | Validate config and test Gemini/Linear connectivity. |
+| `daily-summary config init` | Interactive setup wizard that writes secrets to `~/.daily-summary/.env`. |
+| `daily-summary config show` | Print the merged config with API keys masked. |
+| `daily-summary config get <key>` | Read a config value by dot path. |
+| `daily-summary config set <key> <value>` | Set a repo-local config value. Use `--global` for global config. |
+| `daily-summary history` | List saved reports or open a previous report in `$EDITOR`. |
+| `daily-summary export` | Re-export or open the latest generated report. |
+| `daily-summary schedule` | Create or remove a daily scheduled run. |
+
+### `run` Options
+
+```text
+--since <duration>   time window: 24h, 2d, 1w, etc.  (default: 24h)
+--branch <name>      git branch to scan               (defaults to config)
+--repo <path>        path to the repo to scan         (default: current directory/config)
+--length <size>      short | medium | long            (default: medium)
+--format <fmt>       markdown | html | both           (default: markdown)
+--no-edit            skip editor review, export directly
+--with-linear        enrich report with Linear issue data
+```
+
+Examples:
+
+```bash
+daily-summary run --since 24h --no-edit
+daily-summary run --repo ~/Projects/backend-api --since 7d --format both --no-edit
+daily-summary run --since 1w --with-linear --no-edit
+```
+
+### `docs` Options
+
+```text
+--since <duration>   time window                      (default: 24h)
+--branch <name>      git branch to analyze
+--repo <path>        path to the repo to analyze      (default: current directory/config)
+--no-review          auto-accept all detected tasks
+--format <fmt>       markdown | json | both           (default: markdown)
+--no-llm             use templates instead of LLM
+--create-issues      prompt to create a Linear issue per accepted task
+```
+
+Examples:
+
+```bash
+daily-summary docs --since 7d
+daily-summary docs --since 7d --no-review --format both
+daily-summary docs --since 7d --create-issues
+daily-summary docs push --path ~/docs-repo --auto-commit
+```
+
+### `config` Examples
+
+```bash
+daily-summary config init
+daily-summary config show
+daily-summary config get output.dir
+daily-summary config set branch main
+daily-summary config set output.format both
+daily-summary config set integrations.linear.teamId <team-id>
+daily-summary config set integrations.docsRepo.path /path/to/docs-repo
+daily-summary config set output.dir ~/.daily-summary/reports --global
+```
+
+### `history`, `export`, and `schedule`
+
+```bash
+daily-summary history
+daily-summary history --last
+daily-summary history --open 2026-05-18
+
+daily-summary export
+daily-summary export --date 2026-05-18 --open
+
+daily-summary schedule --time 08:30
+daily-summary schedule --remove
+```
+
+On macOS, scheduling writes a LaunchAgent plist under `~/Library/LaunchAgents/`. On Linux and other platforms, the command prints a crontab line to add manually.
+
+## Linear Integration
+
+Linear support is optional.
+
+For report enrichment, `daily-summary run --with-linear` extracts issue identifiers from commit messages and the current branch name, fetches issue metadata, and groups commits under issue headings.
+
+```bash
+daily-summary config init
+daily-summary doctor
+daily-summary run --since 7d --with-linear --no-edit
+```
+
+For documentation tasks, `daily-summary docs --create-issues` can create one Linear issue per accepted task. This requires both `LINEAR_API_KEY` and `integrations.linear.teamId`.
+
+```bash
+daily-summary config set integrations.linear.teamId <team-id>
+daily-summary docs --since 7d --create-issues
+```
+
+## Generated Files
+
+| Output | Default location |
+|---|---|
+| Stand-up reports | `~/.daily-summary/reports/<date>-<repo>.md` and optionally `.html` |
+| Documentation tasks | `~/.daily-summary/doc-tasks/<date>-<repo>.md` and optionally `.json` |
+| Global secrets | `~/.daily-summary/.env` |
+| Global config | `~/.daily-summary/config.json` |
+| Schedule logs | `~/.daily-summary/logs/` |
+
+## Troubleshooting
+
+Run `daily-summary doctor` first. It checks required config and tests API connectivity.
+
+| Problem | Fix |
+|---|---|
+| `GEMINI_API_KEY is not set` | Run `daily-summary config init`, edit `.env`, or export `GEMINI_API_KEY`. |
+| `GEMINI_MODEL is not set` | Run `daily-summary config init`, edit `.env`, or export `GEMINI_MODEL=gemini-2.0-flash-lite`. |
+| No commits are found | Try `--since 7d`, check `--branch`, or pass `--repo /path/to/repo`. |
+| Linear enrichment is skipped | Set `LINEAR_API_KEY` and run with `--with-linear`. |
+| `docs --create-issues` cannot create issues | Set `LINEAR_API_KEY` and `integrations.linear.teamId`. |
+| Editor review is inconvenient in automation | Use `--no-edit` for reports or `--no-review` for doc tasks. |
+
+## Development Notes
+
+The codebase intentionally keeps the CLI modular:
+
+- command handlers orchestrate flows but delegate work to domain modules;
+- Git ingestion and diff normalization are separate from LLM prompting;
+- report generation is separated from file export;
+- Linear integration is optional and isolated under `src/integrations`;
+- documentation-task detection works without an LLM and uses Gemini only for richer task wording when configured.
+
+Before opening a change, run:
+
+```bash
+npm run typecheck
+npm test
+```
+
+## License
+
+MIT
+</file>
+
+<file path="src/config/types.ts">
+export type SummaryLength = 'short' | 'medium' | 'long';
+export type OutputFormat = 'markdown' | 'html' | 'both';
+export type CommitCategory = 'feat' | 'fix' | 'refactor' | 'docs' | 'chore' | 'perf' | 'test' | 'other';
+
+export interface LLMConfig {
+  model?: string;
+  summaryLength: SummaryLength;
+  apiKey?: string;
+}
+
+export interface OutputConfig {
+  dir: string;
+  format?: OutputFormat;
+}
+
+export interface Config {
+  repoPath: string;
+  branch: string;
+  timeWindow: string;
+  excludePaths?: string[];
+  focusAreas?: string[];
+  llm: LLMConfig;
+  output: OutputConfig;
+  integrations?: IntegrationsConfig;
+}
+
+export interface LinearIntegrationConfig {
+  apiKey?: string;
+  teamId?: string;
+  teamName?: string;
+}
+
+export interface DocsRepoConfig {
+  path?: string;
+  outputDir?: string;
+  autoCommit?: boolean;
+}
+
+export interface IntegrationsConfig {
+  linear?: LinearIntegrationConfig;
+  docsRepo?: DocsRepoConfig;
+}
+
+export type ConfigScope = 'local' | 'global';
+</file>
+
+<file path="src/report/generator.ts">
+import path from 'path';
+import { Config, CommitCategory } from '../config/types';
+import { NormalizedCommit } from '../git/normalizer';
+import { TicketGroup } from '../integrations/types';
+
+export interface Report {
+  date: string;
+  repoName: string;
+  branch: string;
+  timeWindow: string;
+  commitCount: number;
+  summary: string;
+  commits: NormalizedCommit[];
+  ticketGroups?: TicketGroup[];
+  content: string;
+}
+
+const CATEGORY_LABELS: Record<CommitCategory, string> = {
+  feat: 'Features',
+  fix: 'Bug Fixes',
+  perf: 'Performance',
+  refactor: 'Refactors & Improvements',
+  test: 'Tests',
+  docs: 'Documentation',
+  chore: 'Chores & Maintenance',
+  other: 'Other Changes',
+};
+
+const CATEGORY_ORDER: CommitCategory[] = ['feat', 'fix', 'perf', 'refactor', 'test', 'docs', 'chore', 'other'];
+
+function formatDate(isoDate?: string): string {
+  const d = isoDate ? new Date(isoDate) : new Date();
+  return d.toISOString().split('T')[0];
+}
+
+function buildCommitsByCategory(commits: NormalizedCommit[]): string {
+  const groups = new Map<CommitCategory, NormalizedCommit[]>();
+  for (const c of commits) {
+    const list = groups.get(c.category) ?? [];
+    list.push(c);
+    groups.set(c.category, list);
+  }
+
+  const sections = CATEGORY_ORDER
+    .filter((cat) => groups.has(cat))
+    .map((cat) => {
+      const label = CATEGORY_LABELS[cat];
+      const items = groups.get(cat)!
+        .map((c) => {
+          const stat = `+${c.diffStat.insertions}/-${c.diffStat.deletions}`;
+          return `- \`${c.sha.slice(0, 7)}\` ${c.message} (${stat})`;
+        })
+        .join('\n');
+      return `### ${label}\n${items}`;
+    });
+
+  return sections.length > 0 ? sections.join('\n\n') : '_No commits in this period._';
+}
+
+const PRIORITY_LABELS: Record<number, string> = {
+  0: 'No priority',
+  1: 'Urgent',
+  2: 'High',
+  3: 'Medium',
+  4: 'Low',
+};
+
+export function buildTicketSection(groups: TicketGroup[]): string {
+  const sections = groups.map((group) => {
+    const meta: string[] = [];
+    if (group.status) meta.push(group.status);
+    if (group.priority !== undefined) meta.push(PRIORITY_LABELS[group.priority] ?? `P${group.priority}`);
+    const metaSuffix = meta.length > 0 ? ` _(${meta.join(' · ')})_` : '';
+    const heading = group.url
+      ? `### [${group.identifier}: ${group.title}](${group.url})${metaSuffix}`
+      : `### ${group.identifier}: ${group.title}${metaSuffix}`;
+
+    const items = group.commits
+      .map((c) => {
+        const stat = `+${c.diffStat.insertions}/-${c.diffStat.deletions}`;
+        return `- \`${c.sha.slice(0, 7)}\` ${c.message} (${stat})`;
+      })
+      .join('\n');
+
+    return `${heading}\n${items}`;
+  });
+
+  return sections.join('\n\n');
+}
+
+function buildMarkdown(
+  date: string,
+  repoName: string,
+  branch: string,
+  timeWindow: string,
+  commits: NormalizedCommit[],
+  summary: string,
+  ticketGroups?: TicketGroup[],
+): string {
+  const ticketSection = ticketGroups && ticketGroups.length > 0
+    ? `\n---\n\n## By Issue\n\n${buildTicketSection(ticketGroups)}\n`
+    : '';
+
+  return `# Daily Stand-up — ${date}
+
+**Repo:** ${repoName} | **Branch:** ${branch} | **Period:** last ${timeWindow} | **Commits:** ${commits.length}
+
+---
+
+## Summary
+
+${summary}
+
+---
+
+## Commits by Category
+
+${buildCommitsByCategory(commits)}
+${ticketSection}`.trim() + '\n';
+}
+
+export function generateReport(
+  commits: NormalizedCommit[],
+  summary: string,
+  config: Config,
+  ticketGroups?: TicketGroup[],
+): Report {
+  const date = formatDate();
+  const repoName = path.basename(path.resolve(config.repoPath));
+  const content = buildMarkdown(date, repoName, config.branch, config.timeWindow, commits, summary, ticketGroups);
+
+  return {
+    date,
+    repoName,
+    branch: config.branch,
+    timeWindow: config.timeWindow,
+    commitCount: commits.length,
+    summary,
+    commits,
+    ticketGroups,
+    content,
+  };
+}
+</file>
+
+<file path="src/cli/commands/run.ts">
+import { execSync } from 'child_process';
+import { loadConfig } from '../../config/loader';
+import { SummaryLength, OutputFormat } from '../../config/types';
+import { ingestCommits } from '../../git/ingestion';
+import { normalizeDiff } from '../../git/normalizer';
+import { GeminiProvider } from '../../llm/gemini';
+import { generateReport } from '../../report/generator';
+import { exportReport } from '../../report/exporter';
+import { openInEditor } from '../review';
+import { extractIssueRefs, extractIssueRefsFromBranch } from '../../integrations/extractor';
+import { LinearIntegrationClient } from '../../integrations/linear/client';
+import { EnrichedCommit, TicketGroup } from '../../integrations/types';
+import { NormalizedCommit } from '../../git/normalizer';
+
+interface RunOptions {
+  since?: string;
+  branch?: string;
+  repo?: string;
+  length?: string;
+  format?: string;
+  edit: boolean;
+  withLinear: boolean;
+}
+
+function currentBranchName(repoPath: string): string {
+  try {
+    return execSync('git rev-parse --abbrev-ref HEAD', { cwd: repoPath, encoding: 'utf8' }).trim();
+  } catch {
+    return '';
+  }
+}
+
+function buildTicketGroups(enriched: EnrichedCommit[]): TicketGroup[] {
+  const groups = new Map<string, TicketGroup>();
+
+  for (const commit of enriched) {
+    if (commit.linearIssues.length > 0) {
+      for (const issue of commit.linearIssues) {
+        const existing = groups.get(issue.identifier);
+        if (existing) {
+          existing.commits.push(commit);
+        } else {
+          groups.set(issue.identifier, {
+            identifier: issue.identifier,
+            title: issue.title,
+            url: issue.url,
+            status: issue.status,
+            priority: issue.priority,
+            cycleNumber: issue.cycleNumber,
+            cycleTitle: issue.cycleTitle,
+            commits: [commit],
+          });
+        }
+      }
+    } else {
+      const unlinked = groups.get('Unlinked');
+      if (unlinked) {
+        unlinked.commits.push(commit);
+      } else {
+        groups.set('Unlinked', {
+          identifier: 'Unlinked',
+          title: 'Unlinked commits',
+          commits: [commit],
+        });
+      }
+    }
+  }
+
+  // Unlinked last
+  const result: TicketGroup[] = [];
+  for (const [id, group] of groups) {
+    if (id !== 'Unlinked') result.push(group);
+  }
+  const unlinked = groups.get('Unlinked');
+  if (unlinked) result.push(unlinked);
+  return result;
+}
+
+async function enrichWithLinear(
+  normalized: NormalizedCommit[],
+  apiKey: string,
+  repoPath: string,
+): Promise<{ enriched: EnrichedCommit[]; ticketGroups: TicketGroup[] }> {
+  const client = new LinearIntegrationClient(apiKey);
+  const branchName = currentBranchName(repoPath);
+  const branchRefs = branchName ? extractIssueRefsFromBranch(branchName) : [];
+  const branchLinearIds = branchRefs.filter((r) => r.type === 'linear').map((r) => r.identifier);
+
+  // Collect all unique Linear identifiers across commits + branch
+  const allIds = new Set<string>(branchLinearIds);
+  const commitRefs = normalized.map((c) => extractIssueRefs(c.message));
+  for (const refs of commitRefs) {
+    for (const ref of refs) {
+      if (ref.type === 'linear') allIds.add(ref.identifier);
+    }
+  }
+
+  if (allIds.size === 0) {
+    const enriched = normalized.map((c) => ({ ...c, issueRefs: [], linearIssues: [] }));
+    return { enriched, ticketGroups: buildTicketGroups(enriched) };
+  }
+
+  const issueMap = await client.fetchIssues(Array.from(allIds));
+
+  const enriched: EnrichedCommit[] = normalized.map((c, i) => {
+    const refs = commitRefs[i];
+    const linearRefs = refs.filter((r) => r.type === 'linear');
+    const linearIssues = linearRefs
+      .map((r) => issueMap.get(r.identifier))
+      .filter((issue): issue is NonNullable<typeof issue> => issue !== undefined);
+    return { ...c, issueRefs: refs, linearIssues };
+  });
+
+  return { enriched, ticketGroups: buildTicketGroups(enriched) };
+}
+
+export async function runCommand(options: RunOptions): Promise<void> {
+  const config = loadConfig();
+
+  // Apply CLI overrides
+  if (options.since) config.timeWindow = options.since;
+  if (options.branch) config.branch = options.branch;
+  if (options.repo) config.repoPath = options.repo;
+  if (options.length) config.llm.summaryLength = options.length as SummaryLength;
+
+  const format = (options.format ?? config.output.format ?? 'markdown') as OutputFormat;
+
+  if (!config.llm.apiKey) {
+    console.error('Error: GEMINI_API_KEY is not set. Export it as an environment variable or run:');
+    console.error('  daily-summary config set llm.apiKey <your-key>');
+    process.exit(1);
+  }
+
+  if (!config.llm.model) {
+    console.error('Error: GEMINI_MODEL is not set. Export it as an environment variable or run:');
+    console.error('  daily-summary config set llm.model <model-name>');
+    process.exit(1);
+  }
+
+  console.log(`Scanning commits on branch "${config.branch}" since ${config.timeWindow}...`);
+  const commits = ingestCommits(config, { since: config.timeWindow, branch: config.branch });
+
+  if (commits.length === 0) {
+    console.log('No commits found in the specified time window.');
+    process.exit(0);
+  }
+
+  console.log(`Found ${commits.length} commit(s). Normalizing diffs...`);
+  const normalized = normalizeDiff(commits, config);
+
+  console.log(`Summarizing with ${config.llm.model} (${config.llm.summaryLength})...`);
+  const provider = new GeminiProvider(config.llm.apiKey, config.llm.model);
+  const summary = await provider.summarize(normalized, config.llm.summaryLength);
+
+  let ticketGroups: TicketGroup[] | undefined;
+  if (options.withLinear) {
+    const linearKey = config.integrations?.linear?.apiKey;
+    if (!linearKey) {
+      console.warn('Warning: --with-linear set but LINEAR_API_KEY is not configured. Skipping Linear enrichment.');
+      console.warn('  Set it via: export LINEAR_API_KEY=<key>  or  daily-summary config set integrations.linear.apiKey <key>');
+    } else {
+      console.log('Fetching Linear issue data...');
+      try {
+        const result = await enrichWithLinear(normalized, linearKey, config.repoPath);
+        ticketGroups = result.ticketGroups;
+        const linked = ticketGroups.filter((g) => g.identifier !== 'Unlinked').length;
+        console.log(`Linked commits to ${linked} Linear issue(s).`);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.warn(`Warning: Linear enrichment failed (${message}). Continuing without issue data.`);
+      }
+    }
+  }
+
+  let report = generateReport(normalized, summary, config, ticketGroups);
+
+  if (options.edit) {
+    console.log('Opening in editor for review...');
+    try {
+      const editedContent = await openInEditor(report.content);
+      report = { ...report, content: editedContent };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`Skipping export: ${message}`);
+      process.exit(1);
+    }
+  }
+
+  const outputPaths = exportReport(report, config, format);
+  for (const p of outputPaths) {
+    console.log(`Report saved to: ${p}`);
+  }
+}
+</file>
+
+<file path=".env.example">
+# Required: Gemini API key — get one at https://aistudio.google.com/apikey
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-2.0-flash-lite
+
+# Optional: Linear integration — get a key at https://linear.app/settings/account/security
+LINEAR_API_KEY=your_linear_api_key_here
+</file>
+
+<file path="src/config/loader.ts">
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { Config, ConfigScope, IntegrationsConfig } from './types';
+
+export const GLOBAL_CONFIG_DIR = path.join(os.homedir(), '.daily-summary');
+const GLOBAL_CONFIG_FILE = path.join(GLOBAL_CONFIG_DIR, 'config.json');
+const LOCAL_CONFIG_FILE = '.daily-summary.json';
+export const GLOBAL_ENV_FILE = path.join(GLOBAL_CONFIG_DIR, '.env');
+
+const DEFAULTS: Config = {
+  repoPath: '.',
+  branch: 'main',
+  timeWindow: '24h',
+  llm: {
+    summaryLength: 'medium',
+  },
+  output: {
+    dir: path.join(GLOBAL_CONFIG_DIR, 'reports'),
+  },
+};
+
+function readJsonFile(filePath: string): Partial<Config> {
+  try {
+    const raw = fs.readFileSync(filePath, 'utf8');
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+function mergeIntegrations(
+  base?: IntegrationsConfig,
+  override?: IntegrationsConfig,
+): IntegrationsConfig | undefined {
+  if (!base && !override) return undefined;
+  return {
+    ...base,
+    ...override,
+    linear: { ...(base?.linear ?? {}), ...(override?.linear ?? {}) },
+    docsRepo: { ...(base?.docsRepo ?? {}), ...(override?.docsRepo ?? {}) },
+  };
+}
+
+function deepMerge(base: Config, override: Partial<Config>): Config {
+  return {
+    ...base,
+    ...override,
+    llm: { ...base.llm, ...(override.llm ?? {}) },
+    output: { ...base.output, ...(override.output ?? {}) },
+    integrations: mergeIntegrations(base.integrations, override.integrations),
+  };
+}
+
+function loadEnvFile(envPath: string): void {
+  if (!fs.existsSync(envPath)) return;
+  try {
+    const content = fs.readFileSync(envPath, 'utf8');
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const index = trimmed.indexOf('=');
+      if (index > 0) {
+        const key = trimmed.substring(0, index).trim();
+        let value = trimmed.substring(index + 1).trim();
+        if (
+          (value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))
+        ) {
+          value = value.substring(1, value.length - 1);
+        }
+        if (key && !process.env[key]) {
+          process.env[key] = value;
+        }
+      }
+    }
+  } catch {
+    // Ignore reading errors
+  }
+}
+
+export function loadConfig(): Config {
+  // Global ~/.daily-summary/.env loaded first (lowest priority)
+  loadEnvFile(path.join(GLOBAL_CONFIG_DIR, '.env'));
+  // Project-local .env overrides global (higher priority, won't overwrite already-set vars)
+  loadEnvFile(path.join(process.cwd(), '.env'));
+
+  const global = readJsonFile(GLOBAL_CONFIG_FILE);
+  const local = readJsonFile(LOCAL_CONFIG_FILE);
+
+  let config = deepMerge(DEFAULTS, global);
+  config = deepMerge(config, local);
+
+  // Env var overrides for secrets/config
+  const envKey = process.env.GEMINI_API_KEY;
+  if (envKey) {
+    config.llm.apiKey = envKey;
+  }
+
+  const envModel = process.env.GEMINI_MODEL;
+  if (envModel) {
+    config.llm.model = envModel;
+  }
+
+  const linearKey = process.env.LINEAR_API_KEY;
+  if (linearKey) {
+    if (!config.integrations) config.integrations = {};
+    if (!config.integrations.linear) config.integrations.linear = {};
+    config.integrations.linear.apiKey = linearKey;
+  }
+
+  return config;
+}
+
+function setNestedKey(obj: Record<string, unknown>, dotPath: string, value: unknown): void {
+  const parts = dotPath.split('.');
+  let cursor: Record<string, unknown> = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const part = parts[i];
+    if (typeof cursor[part] !== 'object' || cursor[part] === null) {
+      cursor[part] = {};
+    }
+    cursor = cursor[part] as Record<string, unknown>;
+  }
+  cursor[parts[parts.length - 1]] = value;
+}
+
+export function saveConfig(scope: ConfigScope, key: string, value: string): void {
+  const filePath = scope === 'local' ? LOCAL_CONFIG_FILE : GLOBAL_CONFIG_FILE;
+
+  if (scope === 'global') {
+    fs.mkdirSync(GLOBAL_CONFIG_DIR, { recursive: true });
+  }
+
+  let existing: Record<string, unknown> = {};
+  try {
+    existing = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch {
+    // file doesn't exist yet — start fresh
+  }
+
+  setNestedKey(existing, key, value);
+  fs.writeFileSync(filePath, JSON.stringify(existing, null, 2) + '\n');
+}
+
+export function getNestedKey(obj: unknown, dotPath: string): unknown {
+  return dotPath.split('.').reduce((cursor, part) => {
+    if (cursor !== null && typeof cursor === 'object') {
+      return (cursor as Record<string, unknown>)[part];
+    }
+    return undefined;
+  }, obj as unknown);
+}
+
+export function writeEnvKey(filePath: string, key: string, value: string): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  let lines: string[] = [];
+  try {
+    lines = fs.readFileSync(filePath, 'utf8').split('\n');
+  } catch {
+    // file doesn't exist yet — start empty
+  }
+
+  const keyPrefix = `${key}=`;
+  const newLine = `${key}=${value}`;
+  const idx = lines.findIndex((l) => l.startsWith(keyPrefix));
+  if (idx >= 0) {
+    lines[idx] = newLine;
+  } else {
+    if (lines.length > 0 && lines[lines.length - 1] === '') {
+      lines.splice(lines.length - 1, 0, newLine);
+    } else {
+      lines.push(newLine);
+    }
+  }
+
+  fs.writeFileSync(filePath, lines.join('\n'), 'utf8');
+  if (!fs.readFileSync(filePath, 'utf8').endsWith('\n')) {
+    fs.appendFileSync(filePath, '\n');
+  }
+}
+
+export function maskConfig(config: Config): Config {
+  const masked = JSON.parse(JSON.stringify(config)) as Config;
+  if (masked.llm.apiKey) {
+    masked.llm.apiKey = '***';
+  }
+  if (masked.integrations?.linear?.apiKey) {
+    masked.integrations.linear.apiKey = '***';
+  }
+  return masked;
+}
+</file>
+
+<file path="src/cli/index.ts">
+import path from 'path';
+import fs from 'fs';
+import os from 'os';
+import { Command } from 'commander';
+import { runCommand } from './commands/run';
+import { exportCommand } from './commands/export';
+import { configShowCommand, configGetCommand, configSetCommand, configInitCommand } from './commands/config';
+import { historyCommand } from './commands/history';
+import { scheduleCommand } from './commands/schedule';
+import { docsCommand } from './commands/docs';
+import { loadConfig } from '../config/loader';
+import { doctorCommand } from './commands/doctor';
+import { exportDocTasks, pushToDocsRepo } from '../docs/exporter';
+
+const program = new Command();
+
+program
+  .name('daily-summary')
+  .description('Generate daily stand-up summaries from git commits')
+  .version('0.1.0');
+
+program
+  .command('run')
+  .description('Scan commits and generate a stand-up summary')
+  .option('--since <duration>', 'time window, e.g. 24h, 2d, 1w', '24h')
+  .option('--branch <name>', 'git branch to scan (defaults to config)')
+  .option('--length <size>', 'summary length: short, medium, long', 'medium')
+  .option('--format <fmt>', 'output format: markdown, html, both', 'markdown')
+  .option('--repo <path>', 'path to the git repo to scan (default: current directory)')
+  .option('--no-edit', 'skip editor review and export directly')
+  .option('--with-linear', 'enrich report with Linear issue data (requires LINEAR_API_KEY)')
+  .action(async (options) => {
+    await runCommand({
+      since: options.since,
+      branch: options.branch,
+      repo: options.repo,
+      length: options.length,
+      format: options.format,
+      edit: options.edit !== false,
+      withLinear: options.withLinear === true,
+    });
+  });
+
+program
+  .command('export')
+  .description('Re-export or view the last generated report')
+  .option('--date <date>', 'target a specific report by date (YYYY-MM-DD)')
+  .option('--open', 'open the report in $EDITOR')
+  .action(async (options) => {
+    await exportCommand({ date: options.date, open: options.open });
+  });
+
+const configCmd = program
+  .command('config')
+  .description('View or modify configuration');
+
+configCmd
+  .command('init')
+  .description('Interactive setup wizard — saves API keys to ~/.daily-summary/.env')
+  .action(async () => { await configInitCommand(); });
+
+configCmd
+  .command('show')
+  .description('Print the current merged config (API key masked)')
+  .action(() => configShowCommand());
+
+configCmd
+  .command('get <key>')
+  .description('Get a config value by dot-path (e.g. llm.model)')
+  .action((key) => configGetCommand(key));
+
+configCmd
+  .command('set <key> <value>')
+  .description('Set a config value in the repo-local config')
+  .option('--global', 'write to global config instead of repo-local')
+  .action((key, value, options) => configSetCommand(key, value, options));
+
+program
+  .command('history')
+  .description('List all saved reports')
+  .option('--open <date>', 'open report for a specific date in $EDITOR')
+  .option('--last', 'open the most recent report in $EDITOR')
+  .action(async (options) => {
+    await historyCommand({ open: options.open, last: options.last });
+  });
+
+const docsCmd = program
+  .command('docs')
+  .description('Detect and review documentation tasks from recent commits')
+  .option('--since <duration>', 'time window, e.g. 24h, 2d, 1w', '24h')
+  .option('--branch <name>', 'git branch to analyze')
+  .option('--repo <path>', 'path to the git repo to analyze (default: current directory)')
+  .option('--no-review', 'skip interactive review and accept all detected tasks')
+  .option('--format <fmt>', 'export format: markdown, json, both', 'markdown')
+  .option('--no-llm', 'use template-based task descriptions instead of LLM')
+  .option('--create-issues', 'prompt to create a Linear issue for each accepted task (requires LINEAR_API_KEY and team ID)')
+  .action(async (options) => {
+    await docsCommand({
+      since: options.since,
+      branch: options.branch,
+      repo: options.repo,
+      review: options.review !== false,
+      format: options.format,
+      llm: options.llm !== false,
+      createIssues: options.createIssues === true,
+    });
+  });
+
+docsCmd
+  .command('push')
+  .description('Push saved doc tasks to a local docs repository')
+  .option('--date <YYYY-MM-DD>', 'target a specific date (defaults to today)')
+  .option('--repo <name>', 'repo name used in the filename (defaults to current directory name)')
+  .option('--path <docs-repo>', 'path to the docs repository (overrides config)')
+  .option('--auto-commit', 'auto git-commit after writing (overrides config)')
+  .action(async (options) => {
+    const config = loadConfig();
+    const date = options.date ?? new Date().toISOString().split('T')[0];
+    const repoName = options.repo ?? path.basename(path.resolve(config.repoPath));
+
+    if (options.path) {
+      if (!config.integrations) config.integrations = {};
+      if (!config.integrations.docsRepo) config.integrations.docsRepo = {};
+      config.integrations.docsRepo.path = options.path;
+    }
+    if (options.autoCommit) {
+      if (!config.integrations) config.integrations = {};
+      if (!config.integrations.docsRepo) config.integrations.docsRepo = {};
+      config.integrations.docsRepo.autoCommit = true;
+    }
+
+    const docsRepoConfig = config.integrations?.docsRepo ?? {};
+
+    // Find the doc-tasks file for the given date
+    const docTasksDir = path.join(os.homedir(), '.daily-summary', 'doc-tasks');
+    const mdFile = path.join(docTasksDir, `${date}-${repoName}.md`);
+    const jsonFile = path.join(docTasksDir, `${date}-${repoName}.json`);
+
+    let tasks: import('../docs/types').DocTask[] = [];
+    if (fs.existsSync(jsonFile)) {
+      try {
+        tasks = JSON.parse(fs.readFileSync(jsonFile, 'utf8')) as import('../docs/types').DocTask[];
+      } catch {
+        console.error(`Failed to parse ${jsonFile}`);
+        process.exit(1);
+      }
+    } else if (fs.existsSync(mdFile)) {
+      // No JSON — generate a synthetic accepted task list to push the Markdown file
+      tasks = [];
+    } else {
+      console.error(`No doc-tasks file found for ${date}/${repoName}.`);
+      console.error(`Run 'daily-summary docs' first to generate tasks.`);
+      process.exit(1);
+    }
+
+    // If we only have Markdown (no JSON), push it directly
+    if (!fs.existsSync(jsonFile) && fs.existsSync(mdFile)) {
+      const repoPath = path.resolve(docsRepoConfig.path ?? '');
+      if (!docsRepoConfig.path || !fs.existsSync(repoPath)) {
+        console.error('Docs repo path is not set or does not exist.');
+        console.error('  daily-summary config set integrations.docsRepo.path /path/to/docs-repo');
+        process.exit(1);
+      }
+      const outputSubdir = docsRepoConfig.outputDir ?? 'doc-tasks';
+      const outputDir = path.join(repoPath, outputSubdir);
+      fs.mkdirSync(outputDir, { recursive: true });
+      const dest = path.join(outputDir, `${date}-${repoName}.md`);
+      fs.copyFileSync(mdFile, dest);
+      console.log(`Doc tasks pushed to: ${dest}`);
+      if (!docsRepoConfig.autoCommit) {
+        console.log(`To commit: git -C "${repoPath}" add "${path.join(outputSubdir, `${date}-${repoName}.md`)}" && git -C "${repoPath}" commit -m "docs: add doc tasks from ${repoName} ${date}"`);
+      }
+      return;
+    }
+
+    try {
+      const dest = pushToDocsRepo(tasks, repoName, date, docsRepoConfig);
+      console.log(`Doc tasks pushed to: ${dest}`);
+      if (!docsRepoConfig.autoCommit) {
+        const repoPath = path.resolve(docsRepoConfig.path!);
+        const outputSubdir = docsRepoConfig.outputDir ?? 'doc-tasks';
+        console.log(`To commit: git -C "${repoPath}" add "${path.join(outputSubdir, `${date}-${repoName}.md`)}" && git -C "${repoPath}" commit -m "docs: add doc tasks from ${repoName} ${date}"`);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`Error: ${message}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('doctor')
+  .description('Validate config and test API connectivity')
+  .action(async () => { await doctorCommand(); });
+
+program
+  .command('schedule')
+  .description('Set up automated daily report generation')
+  .option('--time <HH:MM>', 'time to run each day (default: 08:00)', '08:00')
+  .option('--remove', 'remove the scheduled job')
+  .action((options) => {
+    scheduleCommand({ time: options.time, remove: options.remove });
+  });
+
+program.parseAsync(process.argv).catch((err: unknown) => {
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(`Error: ${message}`);
+  process.exit(1);
+});
+</file>
+
+</files>
