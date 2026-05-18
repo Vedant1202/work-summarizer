@@ -34,8 +34,8 @@ export interface AppConfig {
   llm: { model?: string; summaryLength: string; apiKey?: string };
   output: { dir: string; format?: string };
   integrations?: {
-    linear?: { teamId?: string };
-    mintlify?: { projectId?: string };
+    linear?: { teamId?: string; apiKey?: string };
+    mintlify?: { projectId?: string; apiKey?: string };
   };
 }
 
