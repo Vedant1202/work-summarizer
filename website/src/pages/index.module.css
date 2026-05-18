@@ -1,0 +1,75 @@
+.heroBanner {
+  padding: 5rem 0;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+}
+
+.buttonGhost {
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.buttonGhost:hover {
+  border-color: #fff !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.quickInstall {
+  margin: 1.5rem auto 0;
+  display: inline-block;
+}
+
+.installCmd {
+  background: rgba(0, 0, 0, 0.35);
+  color: #e0e7ff;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+  display: block;
+}
+
+.features {
+  display: flex;
+  align-items: stretch;
+  padding: 4rem 0 3rem;
+  width: 100%;
+  background: var(--ifm-background-surface-color);
+}
+
+.feature {
+  text-align: center;
+  padding: 1.5rem 1rem;
+}
+
+.featureEmoji {
+  font-size: 2.8rem;
+  margin-bottom: 0.75rem;
+}
+
+.exampleSection {
+  padding: 4rem 0;
+  background: var(--ifm-background-color);
+}
+
+.exampleOutput {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 1.5rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
+}

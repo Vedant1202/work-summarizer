@@ -1,0 +1,95 @@
+/**
+ * Indigo/blue primary palette.
+ * Generate at https://docusaurus.io/docs/styling-layout#styling-your-site-with-infima
+ */
+:root {
+  --ifm-color-primary: #4f46e5;
+  --ifm-color-primary-dark: #4338ca;
+  --ifm-color-primary-darker: #3730a3;
+  --ifm-color-primary-darkest: #312e81;
+  --ifm-color-primary-light: #6366f1;
+  --ifm-color-primary-lighter: #818cf8;
+  --ifm-color-primary-lightest: #a5b4fc;
+  --ifm-code-font-size: 92%;
+  --ifm-font-family-monospace: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  --docusaurus-highlighted-code-line-bg: rgba(79, 70, 229, 0.08);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #818cf8;
+  --ifm-color-primary-dark: #6366f1;
+  --ifm-color-primary-darker: #4f46e5;
+  --ifm-color-primary-darkest: #4338ca;
+  --ifm-color-primary-light: #a5b4fc;
+  --ifm-color-primary-lighter: #c7d2fe;
+  --ifm-color-primary-lightest: #e0e7ff;
+  --docusaurus-highlighted-code-line-bg: rgba(129, 140, 248, 0.12);
+}
+
+/* ── Homepage hero ───────────────────────────────────────────────────────── */
+
+.hero--primary {
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e3a8a 100%);
+}
+
+.hero__title {
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.hero__subtitle {
+  font-size: 1.25rem;
+  opacity: 0.88;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* ── Feature cards ───────────────────────────────────────────────────────── */
+
+.features {
+  display: flex;
+  align-items: flex-start;
+  padding: 4rem 0;
+  width: 100%;
+}
+
+.featureSvg {
+  height: 200px;
+  width: 200px;
+}
+
+/* ── Code block improvements ─────────────────────────────────────────────── */
+
+.theme-code-block {
+  border-radius: 8px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* ── Table improvements ──────────────────────────────────────────────────── */
+
+table {
+  display: table;
+  width: 100%;
+}
+
+table th {
+  background: var(--ifm-color-primary);
+  color: #fff;
+}
+
+[data-theme='dark'] table th {
+  background: var(--ifm-color-primary-dark);
+}
+
+/* ── Navbar ──────────────────────────────────────────────────────────────── */
+
+.navbar__logo {
+  height: 28px;
+}
+
+/* ── Admonition tweaks ───────────────────────────────────────────────────── */
+
+.alert--info {
+  --ifm-alert-border-color: var(--ifm-color-primary-light);
+}
