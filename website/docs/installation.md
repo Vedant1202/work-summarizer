@@ -43,7 +43,7 @@ Welcome to daily-summary setup.
 Config will be saved to: ~/.daily-summary/.env
 
   Gemini API key (https://aistudio.google.com/apikey): AIza...
-  Gemini model name [default: gemini-2.0-flash-lite]:
+  Gemini model name [default: gemini-3.1-flash-lite]:
   Linear API key (optional — press Enter to skip):
 
 Config saved to ~/.daily-summary/.env
@@ -55,7 +55,7 @@ Alternatively, export variables directly in your shell:
 
 ```bash
 export GEMINI_API_KEY="AIza..."
-export GEMINI_MODEL="gemini-2.0-flash-lite"
+export GEMINI_MODEL="gemini-3.1-flash-lite"
 ```
 
 ## Verify the Setup
@@ -69,7 +69,7 @@ A healthy setup looks like:
 ```
 Checking configuration...
   ✓ GEMINI_API_KEY        set
-  ✓ GEMINI_MODEL          gemini-2.0-flash-lite
+  ✓ GEMINI_MODEL          gemini-3.1-flash-lite
   - LINEAR_API_KEY        not set (optional — needed for --with-linear)
   - linear.teamId         not set (optional — needed for --create-issues)
 
@@ -78,7 +78,7 @@ Checking Mintlify...
   - mintlify.projectId    not set (optional — needed for mintlify trigger)
 
 Testing Gemini connection...
-  ✓ Gemini API            reachable (gemini-2.0-flash-lite)
+  ✓ Gemini API            reachable (gemini-3.1-flash-lite)
 
 Testing Linear connection...
   - Linear API            skipped (no key)
@@ -111,7 +111,7 @@ Edit `.env` and set at minimum:
 
 ```bash
 GEMINI_API_KEY=your_api_key_here
-GEMINI_MODEL=gemini-2.0-flash-lite
+GEMINI_MODEL=gemini-3.1-flash-lite
 ```
 
 Run without building:

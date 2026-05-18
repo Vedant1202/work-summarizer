@@ -11,7 +11,7 @@ sidebar_position: 2
 | Variable | Required | Used by | Description |
 |---|---|---|---|
 | `GEMINI_API_KEY` | **Yes** | `run`, `doctor`, `docs` (with LLM) | Gemini API key. [Get one free at Google AI Studio.](https://aistudio.google.com/apikey) |
-| `GEMINI_MODEL` | **Yes** | `run`, `doctor`, `docs` (with LLM) | Gemini model name. The setup wizard defaults to `gemini-2.0-flash-lite`. Other options: `gemini-1.5-pro`, `gemini-2.0-flash`. |
+| `GEMINI_MODEL` | **Yes** | `run`, `doctor`, `docs` (with LLM) | Gemini model name. The setup wizard defaults to `gemini-3.1-flash-lite`. Other options: `gemini-1.5-pro`, `gemini-2.0-flash`. |
 | `LINEAR_API_KEY` | No | `run --with-linear`, `docs --create-issues`, `doctor` | Linear personal API key for fetching issue metadata or creating doc-task issues. |
 | `MINTLIFY_API_KEY` | No | `mintlify trigger`, `mintlify status`, `doctor` | Mintlify API key. |
 | `MINTLIFY_PROJECT_ID` | No | `mintlify trigger` | Mintlify project ID. |
@@ -47,7 +47,7 @@ Writes to `~/.daily-summary/.env`.
 ```bash
 # ~/.daily-summary/.env
 GEMINI_API_KEY=AIza...
-GEMINI_MODEL=gemini-2.0-flash-lite
+GEMINI_MODEL=gemini-3.1-flash-lite
 LINEAR_API_KEY=lin_api_...
 MINTLIFY_API_KEY=mint_...
 MINTLIFY_PROJECT_ID=my-project
@@ -57,7 +57,7 @@ MINTLIFY_PROJECT_ID=my-project
 
 ```bash
 export GEMINI_API_KEY="AIza..."
-export GEMINI_MODEL="gemini-2.0-flash-lite"
+export GEMINI_MODEL="gemini-3.1-flash-lite"
 ```
 
 Add to your `~/.zshrc` or `~/.bashrc` for persistence.
@@ -72,7 +72,7 @@ daily-summary config set integrations.mintlify.projectId "my-project"
 
 | Model | Notes |
 |---|---|
-| `gemini-2.0-flash-lite` | Default. Fast and cost-efficient. Good for most stand-up summaries. |
+| `gemini-3.1-flash-lite` | Default. Fast and cost-efficient. Good for most stand-up summaries. |
 | `gemini-2.0-flash` | Faster than Pro, richer output than Flash Lite. |
 | `gemini-1.5-pro` | Highest quality, slower, higher cost. Best for `--length long` or complex repos. |
 | `gemini-1.5-flash` | Balanced speed/quality. |

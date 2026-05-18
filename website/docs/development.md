@@ -26,7 +26,7 @@ Edit `.env`:
 
 ```bash
 GEMINI_API_KEY=AIza...
-GEMINI_MODEL=gemini-2.0-flash-lite
+GEMINI_MODEL=gemini-3.1-flash-lite
 ```
 
 ## Running Without Building

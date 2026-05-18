@@ -34,7 +34,7 @@ Run `doctor` after initial setup or whenever a command fails unexpectedly — it
 ```
 Checking configuration...
   ✓ GEMINI_API_KEY        set
-  ✓ GEMINI_MODEL          gemini-2.0-flash-lite
+  ✓ GEMINI_MODEL          gemini-3.1-flash-lite
   ✓ LINEAR_API_KEY        set
   ✓ linear.teamId         team-abc123
 
@@ -43,7 +43,7 @@ Checking Mintlify...
   - mintlify.projectId    not set (optional — needed for mintlify trigger)
 
 Testing Gemini connection...
-  ✓ Gemini API            reachable (gemini-2.0-flash-lite)
+  ✓ Gemini API            reachable (gemini-3.1-flash-lite)
 
 Testing Linear connection...
   ✓ Linear API            reachable — 2 team(s): ENG, DESIGN

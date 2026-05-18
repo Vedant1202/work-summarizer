@@ -33,7 +33,7 @@ daily-summary config set llm.apiKey "AIza..."
 | Field | Required | Default |
 |---|---|---|
 | Gemini API key | Yes | — |
-| Gemini model name | Yes | `gemini-2.0-flash-lite` |
+| Gemini model name | Yes | `gemini-3.1-flash-lite` |
 | Linear API key | No | — |
 
 Previously saved values are shown masked (e.g. `AIza***key`) — press Enter to keep them.
@@ -56,7 +56,7 @@ daily-summary config show
   "llm": {
     "summaryLength": "medium",
     "apiKey": "***",
-    "model": "gemini-2.0-flash-lite"
+    "model": "gemini-3.1-flash-lite"
   },
   "output": {
     "dir": "/Users/you/.daily-summary/reports"
