@@ -11,6 +11,7 @@ import { extractIssueRefs, extractIssueRefsFromBranch } from '../../integrations
 import { LinearIntegrationClient } from '../../integrations/linear/client';
 import { EnrichedCommit, TicketGroup } from '../../integrations/types';
 import { NormalizedCommit } from '../../git/normalizer';
+import { detectDocSignals } from '../../docs/detector';
 
 interface RunOptions {
   since?: string;
@@ -172,7 +173,9 @@ export async function runCommand(options: RunOptions): Promise<void> {
     }
   }
 
-  let report = generateReport(normalized, summary, config, ticketGroups);
+  const docSignals = detectDocSignals(normalized);
+
+  let report = generateReport(normalized, summary, config, ticketGroups, docSignals.length > 0 ? docSignals : undefined);
 
   if (options.edit) {
     console.log('Opening in editor for review...');

@@ -2,6 +2,7 @@ import path from 'path';
 import { Config, CommitCategory } from '../config/types';
 import { NormalizedCommit } from '../git/normalizer';
 import { TicketGroup } from '../integrations/types';
+import { DocSignal } from '../docs/types';
 
 export interface Report {
   date: string;
@@ -88,6 +89,28 @@ export function buildTicketSection(groups: TicketGroup[]): string {
   return sections.join('\n\n');
 }
 
+const SEVERITY_BADGE: Record<string, string> = {
+  high: 'HIGH',
+  medium: 'MED',
+  low: 'LOW',
+};
+
+function buildDocsImpactSection(signals: DocSignal[], mintlifyConfigured: boolean): string {
+  if (signals.length === 0) return '';
+
+  const rows = signals.map((s) => {
+    const badge = SEVERITY_BADGE[s.severity] ?? s.severity.toUpperCase();
+    const file = `\`${s.triggerFile}\``;
+    return `| ${badge} | ${s.category} | ${file} | ${s.triggerPattern} |`;
+  });
+
+  const cta = mintlifyConfigured
+    ? 'Run `daily-summary mintlify trigger` to deploy.'
+    : 'Run `daily-summary docs` for a full interactive review.';
+
+  return `\n---\n\n## Docs Impact\n\n_${signals.length} area${signals.length !== 1 ? 's' : ''} may need documentation updates._\n\n| Severity | Category | File | Signal |\n|----------|----------|------|--------|\n${rows.join('\n')}\n\n> ${cta}\n`;
+}
+
 function buildMarkdown(
   date: string,
   repoName: string,
@@ -96,9 +119,15 @@ function buildMarkdown(
   commits: NormalizedCommit[],
   summary: string,
   ticketGroups?: TicketGroup[],
+  docSignals?: DocSignal[],
+  mintlifyConfigured?: boolean,
 ): string {
   const ticketSection = ticketGroups && ticketGroups.length > 0
     ? `\n---\n\n## By Issue\n\n${buildTicketSection(ticketGroups)}\n`
+    : '';
+
+  const docsImpactSection = docSignals && docSignals.length > 0
+    ? buildDocsImpactSection(docSignals, mintlifyConfigured ?? false)
     : '';
 
   return `# Daily Stand-up — ${date}
@@ -116,7 +145,7 @@ ${summary}
 ## Commits by Category
 
 ${buildCommitsByCategory(commits)}
-${ticketSection}`.trim() + '\n';
+${ticketSection}${docsImpactSection}`.trim() + '\n';
 }
 
 export function generateReport(
@@ -124,10 +153,12 @@ export function generateReport(
   summary: string,
   config: Config,
   ticketGroups?: TicketGroup[],
+  docSignals?: DocSignal[],
 ): Report {
   const date = formatDate();
   const repoName = path.basename(path.resolve(config.repoPath));
-  const content = buildMarkdown(date, repoName, config.branch, config.timeWindow, commits, summary, ticketGroups);
+  const mintlifyConfigured = !!(config.integrations?.mintlify?.apiKey && config.integrations?.mintlify?.projectId);
+  const content = buildMarkdown(date, repoName, config.branch, config.timeWindow, commits, summary, ticketGroups, docSignals, mintlifyConfigured);
 
   return {
     date,
