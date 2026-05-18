@@ -36,9 +36,15 @@ export interface DocsRepoConfig {
   autoCommit?: boolean;
 }
 
+export interface MintlifyIntegrationConfig {
+  apiKey?: string;
+  projectId?: string;
+}
+
 export interface IntegrationsConfig {
   linear?: LinearIntegrationConfig;
   docsRepo?: DocsRepoConfig;
+  mintlify?: MintlifyIntegrationConfig;
 }
 
 export type ConfigScope = 'local' | 'global';

@@ -39,6 +39,7 @@ function mergeIntegrations(
     ...override,
     linear: { ...(base?.linear ?? {}), ...(override?.linear ?? {}) },
     docsRepo: { ...(base?.docsRepo ?? {}), ...(override?.docsRepo ?? {}) },
+    mintlify: { ...(base?.mintlify ?? {}), ...(override?.mintlify ?? {}) },
   };
 }
 
@@ -107,6 +108,20 @@ export function loadConfig(): Config {
     if (!config.integrations) config.integrations = {};
     if (!config.integrations.linear) config.integrations.linear = {};
     config.integrations.linear.apiKey = linearKey;
+  }
+
+  const mintlifyKey = process.env.MINTLIFY_API_KEY;
+  if (mintlifyKey) {
+    if (!config.integrations) config.integrations = {};
+    if (!config.integrations.mintlify) config.integrations.mintlify = {};
+    config.integrations.mintlify.apiKey = mintlifyKey;
+  }
+
+  const mintlifyProjectId = process.env.MINTLIFY_PROJECT_ID;
+  if (mintlifyProjectId) {
+    if (!config.integrations) config.integrations = {};
+    if (!config.integrations.mintlify) config.integrations.mintlify = {};
+    config.integrations.mintlify.projectId = mintlifyProjectId;
   }
 
   return config;
@@ -187,6 +202,9 @@ export function maskConfig(config: Config): Config {
   }
   if (masked.integrations?.linear?.apiKey) {
     masked.integrations.linear.apiKey = '***';
+  }
+  if (masked.integrations?.mintlify?.apiKey) {
+    masked.integrations.mintlify.apiKey = '***';
   }
   return masked;
 }
