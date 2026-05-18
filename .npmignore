@@ -9,3 +9,5 @@ agent-skills/
 install.sh
 claude-install.log
 *.daily-summary.json
+website/
+.github/
