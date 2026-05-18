@@ -4,7 +4,7 @@ import os from 'os';
 import { Command } from 'commander';
 import { runCommand } from './commands/run';
 import { exportCommand } from './commands/export';
-import { configShowCommand, configGetCommand, configSetCommand } from './commands/config';
+import { configShowCommand, configGetCommand, configSetCommand, configInitCommand } from './commands/config';
 import { historyCommand } from './commands/history';
 import { scheduleCommand } from './commands/schedule';
 import { docsCommand } from './commands/docs';
@@ -50,6 +50,11 @@ program
 const configCmd = program
   .command('config')
   .description('View or modify configuration');
+
+configCmd
+  .command('init')
+  .description('Interactive setup wizard — saves API keys to ~/.daily-summary/.env')
+  .action(async () => { await configInitCommand(); });
 
 configCmd
   .command('show')

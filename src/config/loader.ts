@@ -3,9 +3,10 @@ import path from 'path';
 import os from 'os';
 import { Config, ConfigScope, IntegrationsConfig } from './types';
 
-const GLOBAL_CONFIG_DIR = path.join(os.homedir(), '.daily-summary');
+export const GLOBAL_CONFIG_DIR = path.join(os.homedir(), '.daily-summary');
 const GLOBAL_CONFIG_FILE = path.join(GLOBAL_CONFIG_DIR, 'config.json');
 const LOCAL_CONFIG_FILE = '.daily-summary.json';
+export const GLOBAL_ENV_FILE = path.join(GLOBAL_CONFIG_DIR, '.env');
 
 const DEFAULTS: Config = {
   repoPath: '.',
@@ -149,6 +150,34 @@ export function getNestedKey(obj: unknown, dotPath: string): unknown {
     }
     return undefined;
   }, obj as unknown);
+}
+
+export function writeEnvKey(filePath: string, key: string, value: string): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  let lines: string[] = [];
+  try {
+    lines = fs.readFileSync(filePath, 'utf8').split('\n');
+  } catch {
+    // file doesn't exist yet — start empty
+  }
+
+  const keyPrefix = `${key}=`;
+  const newLine = `${key}=${value}`;
+  const idx = lines.findIndex((l) => l.startsWith(keyPrefix));
+  if (idx >= 0) {
+    lines[idx] = newLine;
+  } else {
+    if (lines.length > 0 && lines[lines.length - 1] === '') {
+      lines.splice(lines.length - 1, 0, newLine);
+    } else {
+      lines.push(newLine);
+    }
+  }
+
+  fs.writeFileSync(filePath, lines.join('\n'), 'utf8');
+  if (!fs.readFileSync(filePath, 'utf8').endsWith('\n')) {
+    fs.appendFileSync(filePath, '\n');
+  }
 }
 
 export function maskConfig(config: Config): Config {
