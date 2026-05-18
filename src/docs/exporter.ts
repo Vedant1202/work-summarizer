@@ -1,7 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { execSync } from 'child_process';
 import { DocTask, DocExportFormat } from './types';
+import { DocsRepoConfig } from '../config/types';
 
 const DOC_TASKS_DIR = path.join(os.homedir(), '.daily-summary', 'doc-tasks');
 
@@ -78,4 +80,44 @@ export function exportDocTasks(
   }
 
   return written;
+}
+
+export function pushToDocsRepo(
+  tasks: DocTask[],
+  repoName: string,
+  date: string,
+  docsRepoConfig: DocsRepoConfig,
+): string {
+  if (!docsRepoConfig.path) {
+    throw new Error(
+      'Docs repo path is not configured. Set it with:\n  daily-summary config set integrations.docsRepo.path /path/to/docs-repo',
+    );
+  }
+
+  const repoPath = path.resolve(docsRepoConfig.path);
+  if (!fs.existsSync(repoPath)) {
+    throw new Error(`Docs repo path does not exist: ${repoPath}`);
+  }
+
+  const outputSubdir = docsRepoConfig.outputDir ?? 'doc-tasks';
+  const outputDir = path.join(repoPath, outputSubdir);
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  const accepted = tasks.filter((t) => t.status === 'accepted');
+  const fileName = `${date}-${repoName}.md`;
+  const filePath = path.join(outputDir, fileName);
+
+  const content = buildMarkdown(accepted, repoName, date, '', '');
+  fs.writeFileSync(filePath, content, 'utf8');
+
+  if (docsRepoConfig.autoCommit) {
+    const relPath = path.join(outputSubdir, fileName);
+    execSync(`git -C "${repoPath}" add "${relPath}"`, { stdio: 'pipe' });
+    execSync(
+      `git -C "${repoPath}" commit -m "docs: add doc tasks from ${repoName} ${date}"`,
+      { stdio: 'pipe' },
+    );
+  }
+
+  return filePath;
 }
