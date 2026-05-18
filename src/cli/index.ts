@@ -21,6 +21,7 @@ program
   .option('--length <size>', 'summary length: short, medium, long', 'medium')
   .option('--format <fmt>', 'output format: markdown, html, both', 'markdown')
   .option('--no-edit', 'skip editor review and export directly')
+  .option('--with-linear', 'enrich report with Linear issue data (requires LINEAR_API_KEY)')
   .action(async (options) => {
     await runCommand({
       since: options.since,
@@ -28,6 +29,7 @@ program
       length: options.length,
       format: options.format,
       edit: options.edit !== false,
+      withLinear: options.withLinear === true,
     });
   });
 
