@@ -1,4 +1,6 @@
 export type SummaryLength = 'short' | 'medium' | 'long';
+export type OutputFormat = 'markdown' | 'html' | 'both';
+export type CommitCategory = 'feat' | 'fix' | 'refactor' | 'docs' | 'chore' | 'perf' | 'test' | 'other';
 
 export interface LLMConfig {
   model?: string;
@@ -8,12 +10,15 @@ export interface LLMConfig {
 
 export interface OutputConfig {
   dir: string;
+  format?: OutputFormat;
 }
 
 export interface Config {
   repoPath: string;
   branch: string;
   timeWindow: string;
+  excludePaths?: string[];
+  focusAreas?: string[];
   llm: LLMConfig;
   output: OutputConfig;
 }
