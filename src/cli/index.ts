@@ -11,6 +11,7 @@ import { docsCommand } from './commands/docs';
 import { loadConfig } from '../config/loader';
 import { doctorCommand } from './commands/doctor';
 import { exportDocTasks, pushToDocsRepo } from '../docs/exporter';
+import { mintlifyCommand } from './commands/mintlify';
 
 const program = new Command();
 
@@ -187,6 +188,8 @@ docsCmd
       process.exit(1);
     }
   });
+
+program.addCommand(mintlifyCommand());
 
 program
   .command('doctor')
