@@ -56,6 +56,20 @@ export async function doctorCommand(): Promise<void> {
     skip('linear.teamId', 'not set (optional — needed for --create-issues)');
   }
 
+  console.log(`\n${BOLD}Checking Mintlify...${RESET}`);
+  const mintlifyKey = config.integrations?.mintlify?.apiKey;
+  const mintlifyProjectId = config.integrations?.mintlify?.projectId;
+  if (mintlifyKey) {
+    pass('MINTLIFY_API_KEY', 'set');
+  } else {
+    skip('MINTLIFY_API_KEY', 'not set (optional — needed for mintlify trigger)');
+  }
+  if (mintlifyProjectId) {
+    pass('mintlify.projectId', mintlifyProjectId);
+  } else {
+    skip('mintlify.projectId', 'not set (optional — needed for mintlify trigger)');
+  }
+
   console.log(`\n${BOLD}Testing Gemini connection...${RESET}`);
   if (geminiKey && geminiModel) {
     try {
