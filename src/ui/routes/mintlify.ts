@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { loadConfig } from '../../config/loader';
 import { MintlifyDeployClient } from '../../integrations/mintlify/deploy';
-import { appendDeployRecord, listDeployRecords, filterRecordsSince } from '../../integrations/mintlify/cache';
+import { upsertDeployRecord, listDeployRecords, filterRecordsSince } from '../../integrations/mintlify/cache';
 import { MintlifyDeployMode, MintlifyStatusResponse } from '../../integrations/mintlify/types';
 import { GeminiProvider } from '../../llm/gemini';
 import { buildDeploymentSummaryPrompt } from '../../llm/prompts';
@@ -66,9 +66,20 @@ router.post('/trigger', async (req, res) => {
       statusId = result.statusId;
     }
 
+    // Save a pending record immediately so it shows in history right away
+    upsertDeployRecord({
+      statusId,
+      projectId,
+      triggeredAt: new Date().toISOString(),
+      mode: deployMode,
+      branch,
+      previewUrl,
+      finalStatus: 'queued',
+    });
+
     res.json({ statusId, previewUrl });
 
-    // Poll in background and cache the final record
+    // Poll in background and upsert the final record when done
     void (async () => {
       try {
         let finalStatus: MintlifyStatusResponse | undefined;
@@ -81,7 +92,7 @@ router.post('/trigger', async (req, res) => {
           }
         }
         const record = client.buildDeployRecord(statusId, deployMode, finalStatus!, { branch, previewUrl });
-        appendDeployRecord(record);
+        upsertDeployRecord(record);
       } catch {
         // best-effort — don't surface background errors
       }
