@@ -34,34 +34,34 @@ daily-summary ui                   # open the web UI at http://localhost:7331
 
 ```mermaid
 flowchart TD
-  A["CLI command: daily-summary run"] --> B["Load configuration"]
+  A["CLI: daily-summary run"] --> B["Load configuration"]
   B --> C["Read git commits"]
   C --> D["Normalize diffs and categorize commits"]
-  D --> E["Build Gemini prompt"]
-  E --> F["Generate summary with Gemini"]
-  D --> G{"--with-linear?"}
-  G -->|Yes| H["Fetch Linear issue metadata"]
-  G -->|No| I["Skip issue enrichment"]
-  F --> J["Render report Markdown"]
-  H --> J
-  I --> J
+  D --> E["Generate summary with Gemini"]
+  E --> F{"--with-linear?"}
+  F -->|Yes| G["Fetch Linear issue metadata"]
+  F -->|No| H["Skip Linear enrichment"]
+  G --> I["Detect doc-impact signals"]
+  H --> I
+  I --> J["Render report Markdown"]
   J --> K{"Editor review enabled?"}
-  K -->|Yes| L["Open report in editor"]
+  K -->|Yes| L["Open report in $EDITOR"]
   K -->|No| M["Use generated report"]
   L --> N["Export report"]
   M --> N
-  N --> O["Write Markdown / HTML files"]
+  N --> O["Write .md / .html files"]
 ```
 
 ### Configuration Resolution
 
 ```mermaid
 flowchart TD
-  A["Built-in defaults"] --> E["Merged config"]
-  B["~/.daily-summary/config.json"] --> E
-  C[".daily-summary.json"] --> E
-  D["Environment variables"] --> E
-  E --> F["Runtime config"]
+  A["Built-in defaults"] --> F["Merged config"]
+  B["~/.daily-summary/config.json"] --> F
+  C[".daily-summary.json (repo-local)"] --> F
+  D["~/.daily-summary/.env + ./.env"] --> E["process.env vars"]
+  E --> F
+  F --> G["Runtime config"]
 ```
 
 ## Requirements
