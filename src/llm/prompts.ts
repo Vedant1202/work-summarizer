@@ -105,37 +105,53 @@ Write the stand-up summary now. Follow the format and rules above exactly.`;
 }
 
 export function buildDeploymentSummaryPrompt(records: MintlifyDeployRecord[]): string {
+  const hasFileData = records.some((r) => r.filesChanged);
+
   const deploymentBlocks = records.map((r, i) => {
-    const fc = r.filesChanged;
-    const added = fc?.added.join(', ') || 'none';
-    const modified = fc?.modified.join(', ') || 'none';
-    const removed = fc?.removed.join(', ') || 'none';
-    const sha = r.commitSha ? r.commitSha.slice(0, 7) : 'unknown';
     const date = r.triggeredAt.replace('T', ' ').slice(0, 16);
     const lines = [
-      `[${i + 1}] ${date} — ${r.mode} — branch: ${r.branch ?? 'unknown'}`,
-      `    Commit: ${sha} "${r.commitMessage ?? 'no message'}"`,
-      `    Files added:    ${added}`,
-      `    Files modified: ${modified}`,
-      `    Files removed:  ${removed}`,
+      `[${i + 1}] ${date} — ${r.mode} deployment — branch: ${r.branch ?? 'unknown'} — status: ${r.finalStatus}`,
     ];
-    if (r.summary) lines.push(`    Mintlify summary: "${r.summary}"`);
+    if (r.commitSha) lines.push(`    Commit: ${r.commitSha.slice(0, 7)} "${r.commitMessage ?? ''}"`);
+    if (r.filesChanged) {
+      const { added, modified, removed } = r.filesChanged;
+      lines.push(`    Files added:    ${added.join(', ') || 'none'}`);
+      lines.push(`    Files modified: ${modified.join(', ') || 'none'}`);
+      lines.push(`    Files removed:  ${removed.join(', ') || 'none'}`);
+    } else {
+      lines.push('    Files changed:  (not available — API-triggered deployments do not expose commit data)');
+    }
+    if (r.summary) lines.push(`    Mintlify status: "${r.summary}"`);
+    if (r.subdomain) lines.push(`    Site: ${r.subdomain}`);
     return lines.join('\n');
   });
 
-  return `You are a technical documentation assistant. Summarize the following Mintlify documentation deployments.
+  const fileDataNote = hasFileData
+    ? ''
+    : `\nNote: File-level change data is unavailable for these deployments (Mintlify does not expose commit details for API-triggered builds). Summarize deployment activity instead — when docs were updated, on which branch, and how frequently.\n`;
 
+  return `You are a technical documentation assistant. Summarize the following Mintlify documentation deployments.
+${fileDataNote}
 ${deploymentBlocks.join('\n\n')}
 
 ---
 
-Write a concise bullet-point summary of what changed in the documentation.
+${hasFileData
+    ? `Write a concise bullet-point summary of what changed in the documentation.
 Rules:
 - Group related file changes together (e.g. all API reference changes in one bullet)
 - Name specific files or sections where possible (drop path prefixes for readability)
 - Use past tense: "Updated X", "Added Y", "Removed Z"
-- Focus on what a reader of the docs would notice, not implementation details
-- If a file was both added and linked from elsewhere, mention the new content
+- Focus on what a reader of the docs would notice
 - Max 8 bullets total
-- No preamble — start directly with the first bullet`;
+- No preamble — start directly with the first bullet`
+    : `Write a concise bullet-point summary of the documentation deployment activity.
+Rules:
+- Summarize how many deployments happened, on which branch, and in what mode
+- Note the time range and frequency (e.g. "4 preview deployments over 30 minutes")
+- Mention the docs site or subdomain if available
+- Use past tense
+- Max 4 bullets
+- No preamble — start directly with the first bullet`
+  }`;
 }

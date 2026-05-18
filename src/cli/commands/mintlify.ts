@@ -380,12 +380,6 @@ export function mintlifyCommand(): Command {
       }
 
       // LLM summary
-      const hasAnyFiles = records.some((r) => r.filesChanged);
-      if (!hasAnyFiles) {
-        console.log(`\n${DIM}No file change data available. Run 'mintlify trigger' (without --fire-and-forget) to capture file changes.${RESET}\n`);
-        return;
-      }
-
       console.log(`\n${BOLD}Summary${RESET}`);
       console.log('-'.repeat(40));
       try {
