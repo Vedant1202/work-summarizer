@@ -1,6 +1,7 @@
 # daily-commit-summarizer
 
 [![npm version](https://img.shields.io/npm/v/daily-commit-summarizer.svg)](https://www.npmjs.com/package/daily-commit-summarizer)
+[![npm downloads](https://img.shields.io/npm/dw/daily-commit-summarizer.svg)](https://www.npmjs.com/package/daily-commit-summarizer)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-online-6366f1)](https://Vedant1202.github.io/daily-work-summarizer/)
 
@@ -74,7 +75,9 @@ flowchart TD
 
 The full reference — all commands, flags, configuration options, integration guides, and development notes — lives at:
 
-**https://Vedant1202.github.io/daily-work-summarizer/**
+**[https://Vedant1202.github.io/daily-work-summarizer/](https://Vedant1202.github.io/daily-work-summarizer/)**
+
+**[npm package →](https://www.npmjs.com/package/daily-commit-summarizer)**
 
 ## License
 
