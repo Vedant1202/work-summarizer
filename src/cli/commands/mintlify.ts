@@ -54,7 +54,7 @@ export function mintlifyCommand(): Command {
     .option('--production', 'deploy to the live site (default: preview)')
     .option('--branch <name>', 'branch name for preview deployment')
     .option('--project-id <id>', 'Mintlify project ID (overrides config and MINTLIFY_PROJECT_ID)')
-    .option('--no-poll', 'fire-and-forget: print statusId and exit without waiting')
+    .option('--fire-and-forget', 'print statusId and exit without waiting for completion')
     .action(async (options) => {
       const config = loadConfig();
 
@@ -89,13 +89,13 @@ export function mintlifyCommand(): Command {
         }
       }
 
-      if (!options.poll) {
-        // Fire-and-forget
+      if (options.fireAndForget) {
+        // Fire-and-forget — trigger and exit immediately
         try {
           const result = mode === 'preview'
             ? await client.triggerPreview(branch!)
             : await client.triggerProduction();
-          console.log(`statusId: ${result.statusId}`);
+          console.log(`statusId:   ${result.statusId}`);
           if ('previewUrl' in result && result.previewUrl) {
             console.log(`previewUrl: ${result.previewUrl}`);
           }
@@ -130,20 +130,21 @@ export function mintlifyCommand(): Command {
         const success = finalStatus.status === 'success';
         const elapsed = formatElapsed(start);
         const statusLabel = success ? `${GREEN}success${RESET}` : `${RED}failure${RESET}`;
-        console.log(`\n  ${BOLD}Status:${RESET}   ${statusLabel} (${elapsed})`);
+        console.log(`\n  ${BOLD}Status ID:${RESET} ${statusId}`);
+        console.log(`  ${BOLD}Status:${RESET}    ${statusLabel} (${elapsed})`);
         if (finalStatus.subdomain) {
-          console.log(`  ${BOLD}Site:${RESET}     ${finalStatus.subdomain}`);
+          console.log(`  ${BOLD}Site:${RESET}      ${finalStatus.subdomain}`);
         }
         if (previewUrl) {
-          console.log(`  ${BOLD}Preview:${RESET}  ${previewUrl}`);
+          console.log(`  ${BOLD}Preview:${RESET}   ${previewUrl}`);
         }
         if (finalStatus.summary) {
-          console.log(`  ${BOLD}Summary:${RESET}  ${finalStatus.summary}`);
+          console.log(`  ${BOLD}Summary:${RESET}   ${finalStatus.summary}`);
         }
         if (filesChanged) {
           const total = filesChanged.added.length + filesChanged.modified.length + filesChanged.removed.length;
           if (total > 0) {
-            console.log(`  ${BOLD}Files:${RESET}    +${filesChanged.added.length} ~${filesChanged.modified.length} -${filesChanged.removed.length}`);
+            console.log(`  ${BOLD}Files:${RESET}     +${filesChanged.added.length} ~${filesChanged.modified.length} -${filesChanged.removed.length}`);
           }
         }
 
