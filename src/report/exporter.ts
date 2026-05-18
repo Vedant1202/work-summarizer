@@ -14,7 +14,9 @@ export function exportReport(report: Report, config: Config, format: OutputForma
   const outputDir = resolveOutputDir(config);
   fs.mkdirSync(outputDir, { recursive: true });
 
-  const base = `${report.date}-${report.repoName}`;
+  const now = new Date();
+  const hhmm = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+  const base = `${report.date}-${hhmm}-${report.repoName}`;
   const written: string[] = [];
 
   if (format === 'markdown' || format === 'both') {
@@ -53,7 +55,7 @@ export function getLastReportPath(config: Config, targetDate?: string): string |
   return path.join(outputDir, files[0]);
 }
 
-export function listAllReports(config: Config): Array<{ date: string; repoName: string; filePath: string }> {
+export function listAllReports(config: Config): Array<{ date: string; time?: string; repoName: string; filePath: string }> {
   const outputDir = resolveOutputDir(config);
 
   if (!fs.existsSync(outputDir)) return [];
@@ -66,7 +68,9 @@ export function listAllReports(config: Config): Array<{ date: string; repoName: 
     .map((f) => {
       const parts = f.replace(/\.md$/, '').split('-');
       const date = parts.slice(0, 3).join('-');
-      const repoName = parts.slice(3).join('-') || 'unknown';
-      return { date, repoName, filePath: path.join(outputDir, f) };
+      const hasTime = /^\d{4}$/.test(parts[3] ?? '');
+      const time = hasTime ? `${parts[3].slice(0, 2)}:${parts[3].slice(2)}` : undefined;
+      const repoName = parts.slice(hasTime ? 4 : 3).join('-') || 'unknown';
+      return { date, time, repoName, filePath: path.join(outputDir, f) };
     });
 }

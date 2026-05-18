@@ -31,7 +31,10 @@ router.get('/by-path', (req, res) => {
   }
   const parts = path.basename(filePath).replace(/\.md$/, '').split('-');
   const date = parts.slice(0, 3).join('-');
-  res.json({ date, filePath, content: fs.readFileSync(filePath, 'utf8') });
+  const hasTime = /^\d{4}$/.test(parts[3] ?? '');
+  const time = hasTime ? `${parts[3].slice(0, 2)}:${parts[3].slice(2)}` : undefined;
+  const repoName = parts.slice(hasTime ? 4 : 3).join('-') || 'unknown';
+  res.json({ date, time, repoName, filePath, content: fs.readFileSync(filePath, 'utf8') });
 });
 
 router.get('/:date', (req, res) => {
