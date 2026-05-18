@@ -134,12 +134,16 @@ Records are stored locally at `~/.daily-summary/mintlify-deployments.json`.
 ### Sample Output
 
 ```
-Date        Mode        Branch                   Status   Location
-──────────────────────────────────────────────────────────────────────
-2026-05-18  preview     feature/new-api-docs      success  https://preview.mintlify.app/...
-2026-05-17  production  —                         success  myapp.mintlify.app
-2026-05-17  preview     fix/broken-links          failure  https://preview.mintlify.app/...
+StatusId                  Date           Mode        Branch                  Status   Location
+─────────────────────────────────────────────────────────────────────────────────────────────────
+64a2fc3e8a0b12d3e4f56789  2026-05-18 10:22  preview     feature/new-api-docs    success  https://preview.mintlify.app/...
+3b9e1a2c7d4f0e8b5c6a9f1d  2026-05-17 14:05  production  —                       success  myapp.mintlify.app
+1f3e2d4b6c8a0e7f9b2d4c6a  2026-05-17 09:33  preview     fix/broken-links        failure  https://preview.mintlify.app/...
 ```
+
+:::tip Fire-and-forget deployments appear immediately
+When `--fire-and-forget` is used, the `statusId` is saved to the cache right away with `finalStatus: queued`. It will appear in `mintlify history` before the deployment completes — the record updates to `success` or `failure` automatically in the background.
+:::
 
 ---
 

@@ -14,6 +14,7 @@ const sidebars: SidebarsConfig = {
       collapsed: false,
       items: [
         'commands/run',
+        'commands/ui',
         'commands/docs',
         'commands/mintlify',
         'commands/config',

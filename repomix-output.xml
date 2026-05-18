@@ -40,6 +40,9 @@ The content is organized as follows:
 </file_summary>
 
 <directory_structure>
+.github/
+  workflows/
+    deploy-docs.yml
 src/
   bin/
     daily-summary.ts
@@ -53,6 +56,7 @@ src/
       mintlify.ts
       run.ts
       schedule.ts
+      ui.ts
     index.ts
     review.ts
   config/
@@ -86,9 +90,33 @@ src/
     generator.test.ts
     generator.ts
     html.ts
+  ui/
+    routes/
+      config.ts
+      doctor.ts
+      reports.ts
+      run.ts
+      schedule.ts
+    server.ts
+ui/
+  src/
+    pages/
+      Config.tsx
+      Dashboard.tsx
+      Doctor.tsx
+      Reports.tsx
+      Schedule.tsx
+    api.ts
+    App.tsx
+    main.tsx
+  index.html
+  package.json
+  tsconfig.json
+  vite.config.ts
 .env.example
 .gitignore
 .npmignore
+1.json
 package.json
 README.md
 tsconfig.json
@@ -97,6 +125,1026 @@ vitest.config.ts
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="src/cli/commands/ui.ts">
+import http from 'http';
+import { createServer } from '../../ui/server';
+
+const PORT = 7331;
+
+export async function uiCommand(): Promise<void> {
+  const app = createServer();
+  const server = http.createServer(app);
+
+  await new Promise<void>((resolve, reject) => {
+    server.listen(PORT, () => {
+      const url = `http://localhost:${PORT}`;
+      console.log(`\ndaily-summary UI  →  ${url}\n`);
+      void import('open').then(({ default: open }) => open(url)).catch(() => {
+        console.log(`Open your browser to: ${url}`);
+      });
+    });
+
+    server.on('error', (err: NodeJS.ErrnoException) => {
+      if (err.code === 'EADDRINUSE') {
+        console.error(`Port ${PORT} is already in use. Is the UI already running?`);
+      }
+      reject(err);
+    });
+
+    process.on('SIGINT', () => {
+      console.log('\nShutting down...');
+      server.close(() => resolve());
+    });
+  });
+}
+</file>
+
+<file path="src/ui/routes/config.ts">
+import { Router } from 'express';
+import { loadConfig, maskConfig, saveConfig } from '../../config/loader';
+import type { ConfigScope } from '../../config/types';
+
+const router = Router();
+
+router.get('/', (_req, res) => {
+  res.json(maskConfig(loadConfig()));
+});
+
+router.post('/', (req, res) => {
+  const { key, value, scope } = req.body as { key: string; value: string; scope?: ConfigScope };
+  if (!key || value === undefined) {
+    res.status(400).json({ error: 'key and value are required' });
+    return;
+  }
+  saveConfig(scope === 'global' ? 'global' : 'local', key, String(value));
+  res.json({ ok: true });
+});
+
+export { router as configRouter };
+</file>
+
+<file path="src/ui/routes/doctor.ts">
+import { Router } from 'express';
+import { doctorCommand } from '../../cli/commands/doctor';
+
+const ANSI_ESCAPE = /\x1b\[[0-9;]*m/g;
+
+const router = Router();
+
+router.get('/', async (_req, res) => {
+  const lines: string[] = [];
+  const origLog = console.log;
+  const origError = console.error;
+  const origExit = process.exit;
+  let ok = true;
+
+  console.log = (...args: unknown[]) => lines.push(args.map(String).join(' ').replace(ANSI_ESCAPE, ''));
+  console.error = (...args: unknown[]) => lines.push(args.map(String).join(' ').replace(ANSI_ESCAPE, ''));
+  process.exit = (code?: number) => {
+    ok = (code ?? 0) === 0;
+    throw new Error(`exit:${code ?? 0}`);
+  };
+
+  try {
+    await doctorCommand();
+  } catch (e) {
+    if (!(e instanceof Error) || !e.message.startsWith('exit:')) {
+      lines.push(`Error: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  } finally {
+    console.log = origLog;
+    console.error = origError;
+    process.exit = origExit;
+  }
+
+  res.json({ ok, lines });
+});
+
+export { router as doctorRouter };
+</file>
+
+<file path="src/ui/routes/reports.ts">
+import { Router } from 'express';
+import fs from 'fs';
+import { loadConfig } from '../../config/loader';
+import { listAllReports, getLastReportPath } from '../../report/exporter';
+
+const router = Router();
+
+router.get('/', (_req, res) => {
+  const reports = listAllReports(loadConfig());
+  res.json(reports);
+});
+
+router.get('/:date', (req, res) => {
+  const filePath = getLastReportPath(loadConfig(), req.params.date);
+  if (!filePath) {
+    res.status(404).json({ error: 'Report not found' });
+    return;
+  }
+  res.json({ date: req.params.date, content: fs.readFileSync(filePath, 'utf8') });
+});
+
+export { router as reportsRouter };
+</file>
+
+<file path="src/ui/routes/run.ts">
+import { Router } from 'express';
+import { runCommand } from '../../cli/commands/run';
+
+interface RunState {
+  running: boolean;
+  lastRunDate: string | null;
+  error: string | null;
+}
+
+const state: RunState = { running: false, lastRunDate: null, error: null };
+
+const router = Router();
+
+router.get('/status', (_req, res) => {
+  res.json(state);
+});
+
+router.post('/', (_req, res) => {
+  if (state.running) {
+    res.status(409).json({ error: 'A run is already in progress' });
+    return;
+  }
+
+  state.running = true;
+  state.error = null;
+  res.json({ started: true });
+
+  const origExit = process.exit;
+  process.exit = (code?: number) => { throw new Error(`exit:${code ?? 0}`); };
+
+  void runCommand({ since: '24h', edit: false, withLinear: false })
+    .then(() => {
+      state.lastRunDate = new Date().toISOString();
+    })
+    .catch((err: unknown) => {
+      state.error = err instanceof Error ? err.message : String(err);
+    })
+    .finally(() => {
+      state.running = false;
+      process.exit = origExit;
+    });
+});
+
+export { router as runRouter };
+</file>
+
+<file path="src/ui/routes/schedule.ts">
+import { Router } from 'express';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { execSync } from 'child_process';
+import { scheduleCommand } from '../../cli/commands/schedule';
+
+const PLIST_LABEL = 'com.daily-summary';
+const PLIST_PATH = path.join(os.homedir(), 'Library', 'LaunchAgents', `${PLIST_LABEL}.plist`);
+
+function parsePlistTime(content: string): string | null {
+  const hourMatch = /<key>Hour<\/key>\s*<integer>(\d+)<\/integer>/i.exec(content);
+  const minuteMatch = /<key>Minute<\/key>\s*<integer>(\d+)<\/integer>/i.exec(content);
+  if (!hourMatch || !minuteMatch) return null;
+  const hour = parseInt(hourMatch[1], 10);
+  const minute = parseInt(minuteMatch[1], 10);
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+function getScheduleStatus() {
+  if (process.platform !== 'darwin') {
+    return { scheduled: false, time: null, loaded: false, platform: 'linux' as const };
+  }
+  if (!fs.existsSync(PLIST_PATH)) {
+    return { scheduled: false, time: null, loaded: false, platform: 'macos' as const };
+  }
+
+  const content = fs.readFileSync(PLIST_PATH, 'utf8');
+  const time = parsePlistTime(content);
+
+  let loaded = false;
+  try {
+    const out = execSync(`launchctl list ${PLIST_LABEL} 2>/dev/null`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+    loaded = out.trim().length > 0;
+  } catch {
+    loaded = false;
+  }
+
+  return { scheduled: true, time, loaded, platform: 'macos' as const };
+}
+
+const router = Router();
+
+router.get('/', (_req, res) => {
+  res.json(getScheduleStatus());
+});
+
+router.post('/', (req, res) => {
+  const { time, remove } = req.body as { time?: string; remove?: boolean };
+
+  const origExit = process.exit;
+  process.exit = (code?: number) => { throw new Error(`exit:${code ?? 0}`); };
+
+  try {
+    scheduleCommand({ time: time ?? '08:00', remove });
+    res.json({ ok: true, status: getScheduleStatus() });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: message });
+  } finally {
+    process.exit = origExit;
+  }
+});
+
+export { router as scheduleRouter };
+</file>
+
+<file path="src/ui/server.ts">
+import express from 'express';
+import path from 'path';
+import { runRouter } from './routes/run';
+import { reportsRouter } from './routes/reports';
+import { configRouter } from './routes/config';
+import { scheduleRouter } from './routes/schedule';
+import { doctorRouter } from './routes/doctor';
+
+export function createServer(): express.Application {
+  const app = express();
+  app.use(express.json());
+
+  app.use('/api/run', runRouter);
+  app.use('/api/reports', reportsRouter);
+  app.use('/api/config', configRouter);
+  app.use('/api/schedule', scheduleRouter);
+  app.use('/api/doctor', doctorRouter);
+
+  // After tsc, __dirname = dist/ui/ and the frontend builds to dist/ui/public/
+  const staticDir = path.join(__dirname, 'public');
+  app.use(express.static(staticDir));
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(staticDir, 'index.html'));
+  });
+
+  return app;
+}
+</file>
+
+<file path="ui/src/pages/Config.tsx">
+import { useEffect, useState } from 'react';
+import { api, AppConfig } from '../api';
+
+interface Field { key: string; label: string; hint?: string }
+
+const FIELDS: Field[] = [
+  { key: 'repoPath', label: 'Repo Path', hint: 'Path to the git repo (default: .)' },
+  { key: 'branch', label: 'Branch', hint: 'Git branch to scan' },
+  { key: 'timeWindow', label: 'Time Window', hint: 'e.g. 24h, 2d, 1w' },
+  { key: 'llm.summaryLength', label: 'Summary Length', hint: 'short | medium | long' },
+  { key: 'output.format', label: 'Output Format', hint: 'markdown | html | both' },
+  { key: 'output.dir', label: 'Output Directory' },
+  { key: 'integrations.linear.teamId', label: 'Linear Team ID', hint: 'optional' },
+  { key: 'integrations.mintlify.projectId', label: 'Mintlify Project ID', hint: 'optional' },
+];
+
+function getPath(obj: unknown, path: string): string {
+  return String(
+    path.split('.').reduce<unknown>((cur, p) => {
+      if (cur !== null && typeof cur === 'object') return (cur as Record<string, unknown>)[p];
+      return undefined;
+    }, obj) ?? ''
+  );
+}
+
+export default function Config() {
+  const [config, setConfig] = useState<AppConfig | null>(null);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.getConfig().then((c) => {
+      setConfig(c);
+      const initial: Record<string, string> = {};
+      for (const { key } of FIELDS) initial[key] = getPath(c, key);
+      setValues(initial);
+    });
+  }, []);
+
+  const handleSave = async (key: string) => {
+    setSaving(key);
+    try {
+      await api.setConfig(key, values[key]);
+      setSaved(key);
+      setTimeout(() => setSaved(null), 2000);
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  if (!config) return <p style={{ color: '#666' }}>Loading…</p>;
+
+  return (
+    <div>
+      <h2 style={heading}>Config</h2>
+      <p style={{ color: '#666', fontSize: 13, marginBottom: 24 }}>
+        API keys are managed via <code>daily-summary config init</code> in the terminal.
+      </p>
+      <div style={{ maxWidth: 700 }}>
+        {FIELDS.map(({ key, label, hint }) => (
+          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+            <div style={{ width: 220, flexShrink: 0 }}>
+              <div style={{ fontSize: 14, color: '#333' }}>{label}</div>
+              {hint && <div style={{ fontSize: 12, color: '#999' }}>{hint}</div>}
+            </div>
+            <input
+              value={values[key] ?? ''}
+              onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
+              style={{ flex: 1, padding: '7px 10px', border: '1px solid #ccc', borderRadius: 4, fontSize: 14 }}
+            />
+            <button
+              onClick={() => void handleSave(key)}
+              disabled={saving === key}
+              style={{
+                padding: '7px 14px',
+                background: saved === key ? '#276749' : saving === key ? '#ccc' : '#111',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 4,
+                cursor: saving === key ? 'not-allowed' : 'pointer',
+                fontSize: 13,
+                minWidth: 60,
+              }}
+            >
+              {saved === key ? 'Saved' : saving === key ? '…' : 'Save'}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const heading: React.CSSProperties = { marginTop: 0, marginBottom: 24, fontSize: 22, fontWeight: 700 };
+</file>
+
+<file path="ui/src/pages/Dashboard.tsx">
+import { useEffect, useCallback, useState } from 'react';
+import { api, RunStatus } from '../api';
+
+export default function Dashboard() {
+  const [status, setStatus] = useState<RunStatus>({ running: false, lastRunDate: null, error: null });
+  const [triggering, setTriggering] = useState(false);
+
+  const fetchStatus = useCallback(async () => {
+    try {
+      const s = await api.getRunStatus();
+      setStatus(s);
+    } catch {
+      // ignore poll errors
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchStatus();
+    const id = setInterval(() => void fetchStatus(), 5000);
+    return () => clearInterval(id);
+  }, [fetchStatus]);
+
+  const handleRun = async () => {
+    setTriggering(true);
+    try {
+      await api.triggerRun();
+      setStatus((s) => ({ ...s, running: true, error: null }));
+    } catch (e) {
+      setStatus((s) => ({ ...s, error: e instanceof Error ? e.message : String(e) }));
+    } finally {
+      setTriggering(false);
+    }
+  };
+
+  const busy = status.running || triggering;
+
+  return (
+    <div>
+      <h2 style={heading}>Dashboard</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, maxWidth: 640, marginBottom: 32 }}>
+        <Card title="Last Run">
+          {status.lastRunDate
+            ? new Date(status.lastRunDate).toLocaleString()
+            : 'No runs yet'}
+        </Card>
+        <Card title="Status">
+          {status.running ? '⏳ Running…' : 'Idle'}
+        </Card>
+      </div>
+
+      {status.error && (
+        <div style={{ marginBottom: 16, color: '#c53030', fontSize: 14 }}>
+          Last run error: {status.error}
+        </div>
+      )}
+
+      <button onClick={() => void handleRun()} disabled={busy} style={btn(busy)}>
+        {status.running ? 'Running…' : 'Run Now'}
+      </button>
+      {status.running && (
+        <span style={{ marginLeft: 12, color: '#666', fontSize: 14 }}>
+          Polling for completion every 5s…
+        </span>
+      )}
+    </div>
+  );
+}
+
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: 8, padding: 20 }}>
+      <div style={{ fontSize: 11, color: '#888', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+        {title}
+      </div>
+      <div style={{ fontSize: 15 }}>{children}</div>
+    </div>
+  );
+}
+
+const heading: React.CSSProperties = { marginTop: 0, marginBottom: 24, fontSize: 22, fontWeight: 700 };
+
+function btn(disabled: boolean): React.CSSProperties {
+  return {
+    padding: '10px 22px',
+    background: disabled ? '#ccc' : '#111',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 6,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    fontSize: 14,
+    fontWeight: 500,
+  };
+}
+</file>
+
+<file path="ui/src/pages/Doctor.tsx">
+import { useState } from 'react';
+import { api, DoctorResult } from '../api';
+
+export default function Doctor() {
+  const [result, setResult] = useState<DoctorResult | null>(null);
+  const [running, setRunning] = useState(false);
+
+  const handleRun = async () => {
+    setRunning(true);
+    setResult(null);
+    try {
+      const r = await api.runDoctor();
+      setResult(r);
+    } catch (e) {
+      setResult({ ok: false, lines: [`Error: ${e instanceof Error ? e.message : String(e)}`] });
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div>
+      <h2 style={heading}>Doctor</h2>
+      <p style={{ color: '#666', fontSize: 14, marginBottom: 24 }}>
+        Check your configuration and API connectivity.
+      </p>
+
+      <button onClick={() => void handleRun()} disabled={running} style={btn(running)}>
+        {running ? 'Running checks…' : 'Run Doctor'}
+      </button>
+
+      {result && (
+        <div style={{
+          marginTop: 24,
+          background: result.ok ? '#f0fff4' : '#fff5f5',
+          border: `1px solid ${result.ok ? '#9ae6b4' : '#feb2b2'}`,
+          borderRadius: 8,
+          padding: 20,
+        }}>
+          <div style={{ fontWeight: 600, marginBottom: 12, color: result.ok ? '#22543d' : '#742a2a' }}>
+            {result.ok ? '✓ Setup looks good' : '✗ Setup incomplete'}
+          </div>
+          <pre style={{ margin: 0, fontSize: 13, fontFamily: 'ui-monospace, monospace', whiteSpace: 'pre-wrap', lineHeight: 1.7, color: '#333' }}>
+            {result.lines.filter((l) => l.trim()).join('\n')}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const heading: React.CSSProperties = { marginTop: 0, marginBottom: 8, fontSize: 22, fontWeight: 700 };
+
+function btn(disabled: boolean): React.CSSProperties {
+  return {
+    padding: '10px 22px',
+    background: disabled ? '#ccc' : '#111',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 6,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    fontSize: 14,
+    fontWeight: 500,
+  };
+}
+</file>
+
+<file path="ui/src/pages/Reports.tsx">
+import { useEffect, useState } from 'react';
+import { marked } from 'marked';
+import { api, ReportMeta, ReportContent } from '../api';
+
+export default function Reports() {
+  const [reports, setReports] = useState<ReportMeta[]>([]);
+  const [selected, setSelected] = useState<ReportContent | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    api.listReports().then(setReports);
+  }, []);
+
+  const handleSelect = async (date: string) => {
+    setLoading(true);
+    try {
+      const r = await api.getReport(date);
+      setSelected(r);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', gap: 24, height: 'calc(100vh - 120px)' }}>
+      <div style={{ width: 200, flexShrink: 0, overflowY: 'auto' }}>
+        <h2 style={{ ...heading, fontSize: 18 }}>Reports</h2>
+        {reports.length === 0 && <p style={{ color: '#999', fontSize: 14 }}>No reports yet.</p>}
+        {reports.map((r) => (
+          <button
+            key={r.filePath}
+            onClick={() => void handleSelect(r.date)}
+            style={{
+              display: 'block',
+              width: '100%',
+              textAlign: 'left',
+              padding: '8px 12px',
+              marginBottom: 4,
+              background: selected?.date === r.date ? '#111' : '#fff',
+              color: selected?.date === r.date ? '#fff' : '#333',
+              border: '1px solid #e5e5e5',
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontSize: 13,
+            }}
+          >
+            <div style={{ fontWeight: 600 }}>{r.date}</div>
+            <div style={{ fontSize: 11, color: selected?.date === r.date ? '#aaa' : '#999', marginTop: 2 }}>
+              {r.repoName}
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <div style={{ flex: 1, background: '#fff', border: '1px solid #e5e5e5', borderRadius: 8, padding: 28, overflowY: 'auto' }}>
+        {loading && <p style={{ color: '#666' }}>Loading…</p>}
+        {!loading && !selected && <p style={{ color: '#bbb' }}>Select a report to view it.</p>}
+        {!loading && selected && (
+          <div
+            dangerouslySetInnerHTML={{ __html: marked(selected.content) as string }}
+            style={{ lineHeight: 1.7, fontSize: 15, color: '#222' }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+const heading: React.CSSProperties = { marginTop: 0, marginBottom: 16, fontWeight: 700 };
+</file>
+
+<file path="ui/src/pages/Schedule.tsx">
+import { useEffect, useState } from 'react';
+import { api, ScheduleStatus } from '../api';
+
+export default function Schedule() {
+  const [status, setStatus] = useState<ScheduleStatus | null>(null);
+  const [time, setTime] = useState('08:00');
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const load = async () => {
+    const s = await api.getSchedule();
+    setStatus(s);
+    if (s.time) setTime(s.time);
+  };
+
+  useEffect(() => { void load(); }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setMsg('');
+    try {
+      await api.setSchedule(time);
+      await load();
+      setMsg(`Plist written for ${time}. To activate: launchctl load ~/Library/LaunchAgents/com.daily-summary.plist`);
+    } catch (e) {
+      setMsg(`Error: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemove = async () => {
+    setSaving(true);
+    setMsg('');
+    try {
+      await api.removeSchedule();
+      await load();
+      setMsg('Schedule removed.');
+    } catch (e) {
+      setMsg(`Error: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!status) return <p style={{ color: '#666' }}>Loading…</p>;
+
+  return (
+    <div>
+      <h2 style={heading}>Schedule</h2>
+
+      {status.platform === 'linux' && (
+        <div style={infoBox}>
+          Linux scheduling requires manual crontab setup. Use{' '}
+          <code>daily-summary schedule --time HH:MM</code> in your terminal for the crontab line.
+        </div>
+      )}
+
+      {status.platform === 'macos' && (
+        <>
+          <div style={{ marginBottom: 20, color: '#555', fontSize: 14 }}>
+            Status:{' '}
+            <strong style={{ color: status.scheduled ? '#22543d' : '#666' }}>
+              {status.scheduled ? `Scheduled at ${status.time}` : 'Not scheduled'}
+            </strong>
+            {status.scheduled && !status.loaded && (
+              <span style={{ color: '#b7791f', marginLeft: 8 }}>(plist exists but not loaded — run launchctl load)</span>
+            )}
+            {status.scheduled && status.loaded && (
+              <span style={{ color: '#276749', marginLeft: 8 }}>(active)</span>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            <label style={{ fontSize: 14 }}>Time:</label>
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              style={{ padding: '6px 10px', border: '1px solid #ccc', borderRadius: 4, fontSize: 14 }}
+            />
+            <button onClick={() => void handleSave()} disabled={saving} style={btn(saving)}>
+              {saving ? 'Saving…' : 'Save Schedule'}
+            </button>
+            {status.scheduled && (
+              <button
+                onClick={() => void handleRemove()}
+                disabled={saving}
+                style={{ ...btn(saving), background: saving ? '#ccc' : '#c53030' }}
+              >
+                Remove
+              </button>
+            )}
+          </div>
+
+          {msg && (
+            <div style={{ ...infoBox, marginTop: 12, color: msg.startsWith('Error') ? '#c53030' : '#333' }}>
+              {msg}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+const heading: React.CSSProperties = { marginTop: 0, marginBottom: 24, fontSize: 22, fontWeight: 700 };
+const infoBox: React.CSSProperties = { background: '#fff', border: '1px solid #e5e5e5', borderRadius: 8, padding: 16, fontSize: 14, color: '#555' };
+
+function btn(disabled: boolean): React.CSSProperties {
+  return {
+    padding: '8px 16px',
+    background: disabled ? '#ccc' : '#111',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 6,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    fontSize: 14,
+  };
+}
+</file>
+
+<file path="ui/src/api.ts">
+const BASE = '/api';
+
+export interface RunStatus {
+  running: boolean;
+  lastRunDate: string | null;
+  error: string | null;
+}
+
+export interface ReportMeta {
+  date: string;
+  repoName: string;
+  filePath: string;
+}
+
+export interface ReportContent {
+  date: string;
+  content: string;
+}
+
+export interface AppConfig {
+  repoPath: string;
+  branch: string;
+  timeWindow: string;
+  llm: { model?: string; summaryLength: string; apiKey?: string };
+  output: { dir: string; format?: string };
+  integrations?: {
+    linear?: { teamId?: string };
+    mintlify?: { projectId?: string };
+  };
+}
+
+export interface ScheduleStatus {
+  scheduled: boolean;
+  time: string | null;
+  loaded: boolean;
+  platform: 'macos' | 'linux';
+}
+
+export interface DoctorResult {
+  ok: boolean;
+  lines: string[];
+}
+
+async function json<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText })) as { error?: string };
+    throw new Error(body.error ?? res.statusText);
+  }
+  return res.json() as Promise<T>;
+}
+
+export const api = {
+  triggerRun: () =>
+    fetch(`${BASE}/run`, { method: 'POST' }).then((r) => json<{ started: boolean }>(r)),
+
+  getRunStatus: () =>
+    fetch(`${BASE}/run/status`).then((r) => json<RunStatus>(r)),
+
+  listReports: () =>
+    fetch(`${BASE}/reports`).then((r) => json<ReportMeta[]>(r)),
+
+  getReport: (date: string) =>
+    fetch(`${BASE}/reports/${date}`).then((r) => json<ReportContent>(r)),
+
+  getConfig: () =>
+    fetch(`${BASE}/config`).then((r) => json<AppConfig>(r)),
+
+  setConfig: (key: string, value: string, scope: 'local' | 'global' = 'local') =>
+    fetch(`${BASE}/config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, value, scope }),
+    }).then((r) => json<{ ok: boolean }>(r)),
+
+  getSchedule: () =>
+    fetch(`${BASE}/schedule`).then((r) => json<ScheduleStatus>(r)),
+
+  setSchedule: (time: string) =>
+    fetch(`${BASE}/schedule`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ time }),
+    }).then((r) => json<{ ok: boolean; status: ScheduleStatus }>(r)),
+
+  removeSchedule: () =>
+    fetch(`${BASE}/schedule`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ remove: true }),
+    }).then((r) => json<{ ok: boolean; status: ScheduleStatus }>(r)),
+
+  runDoctor: () =>
+    fetch(`${BASE}/doctor`).then((r) => json<DoctorResult>(r)),
+};
+</file>
+
+<file path="ui/src/App.tsx">
+import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
+import Dashboard from './pages/Dashboard';
+import Schedule from './pages/Schedule';
+import Config from './pages/Config';
+import Reports from './pages/Reports';
+import Doctor from './pages/Doctor';
+
+const NAV_ITEMS = [
+  { to: '/', label: 'Dashboard' },
+  { to: '/schedule', label: 'Schedule' },
+  { to: '/config', label: 'Config' },
+  { to: '/reports', label: 'Reports' },
+  { to: '/doctor', label: 'Doctor' },
+];
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <div style={{ display: 'flex', minHeight: '100vh' }}>
+        <nav style={{ width: 200, background: '#111', color: '#fff', padding: '24px 12px', flexShrink: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#888', letterSpacing: '0.08em', marginBottom: 24, paddingLeft: 12 }}>
+            DAILY SUMMARY
+          </div>
+          {NAV_ITEMS.map(({ to, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/'}
+              style={({ isActive }) => ({
+                display: 'block',
+                padding: '8px 12px',
+                marginBottom: 2,
+                borderRadius: 6,
+                textDecoration: 'none',
+                color: isActive ? '#fff' : '#aaa',
+                background: isActive ? '#2a2a2a' : 'transparent',
+                fontSize: 14,
+              })}
+            >
+              {label}
+            </NavLink>
+          ))}
+        </nav>
+        <main style={{ flex: 1, padding: 40, overflowY: 'auto' }}>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/schedule" element={<Schedule />} />
+            <Route path="/config" element={<Config />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/doctor" element={<Doctor />} />
+          </Routes>
+        </main>
+      </div>
+    </BrowserRouter>
+  );
+}
+</file>
+
+<file path="ui/src/main.tsx">
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+</file>
+
+<file path="ui/index.html">
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>daily-summary</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: system-ui, -apple-system, sans-serif; background: #f9f9f9; }
+      code { font-family: ui-monospace, monospace; background: #f0f0f0; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+</file>
+
+<file path="ui/package.json">
+{
+  "name": "daily-summary-ui",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "marked": "^12.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "typescript": "^5.6.0",
+    "vite": "^5.4.0"
+  }
+}
+</file>
+
+<file path="ui/tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true
+  },
+  "include": ["src", "vite.config.ts"]
+}
+</file>
+
+<file path="ui/vite.config.ts">
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  build: {
+    outDir: '../dist/ui/public',
+    emptyOutDir: true,
+  },
+  server: {
+    proxy: {
+      '/api': 'http://localhost:7331',
+    },
+  },
+});
+</file>
+
+<file path=".github/workflows/deploy-docs.yml">
+name: Deploy Docs to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'website/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: website
+
+      - name: Build docs
+        run: npm run build
+        working-directory: website
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: website/build
+          cname: ''
+</file>
 
 <file path="src/bin/daily-summary.ts">
 #!/usr/bin/env node
@@ -1454,18 +2502,58 @@ describe('buildTicketSection', () => {
 });
 </file>
 
-<file path=".npmignore">
-src/
-tsconfig.json
-.env
-.env.example
-.plans/
-.claude/
-.agents/
-agent-skills/
-install.sh
-claude-install.log
-*.daily-summary.json
+<file path="1.json">
+{
+  "name": "daily-commit-summarizer",
+  "version": "0.1.0",
+  "description": "Generate daily stand-up summaries from git commits using Gemini AI",
+  "type": "commonjs",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "git",
+    "standup",
+    "summary",
+    "gemini",
+    "ai",
+    "cli",
+    "developer-tools",
+    "linear"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vedantnandoskar/daily-commit-summarizer.git"
+  },
+  "bin": {
+    "daily-summary": "./dist/bin/daily-summary.js"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc && chmod +x dist/bin/daily-summary.js",
+    "prepare": "npm run build",
+    "dev": "tsx src/bin/daily-summary.ts",
+    "start": "node dist/bin/daily-summary.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "@linear/sdk": "^84.0.0",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0"
+  }
+}
 </file>
 
 <file path="vitest.config.ts">
@@ -2620,17 +3708,20 @@ export function buildHtml(report: Report): string {
 }
 </file>
 
-<file path=".gitignore">
-.agents/
+<file path=".npmignore">
+src/
+tsconfig.json
+.env
+.env.example
+.plans/
 .claude/
+.agents/
 agent-skills/
 install.sh
 claude-install.log
-.plans/
-node_modules/
-dist/
-.env
 *.daily-summary.json
+website/
+.github/
 </file>
 
 <file path="tsconfig.json">
@@ -2648,7 +3739,7 @@ dist/
     "sourceMap": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "agent-skills"]
+  "exclude": ["node_modules", "dist", "agent-skills", "ui"]
 }
 </file>
 
@@ -2937,6 +4028,20 @@ export async function docsCommand(options: DocsOptions): Promise<void> {
 }
 </file>
 
+<file path=".gitignore">
+.agents/
+.claude/
+agent-skills/
+install.sh
+claude-install.log
+.plans/
+node_modules/
+dist/
+.env
+*.daily-summary.json
+website
+</file>
+
 <file path="package.json">
 {
   "name": "daily-commit-summarizer",
@@ -2970,7 +4075,9 @@ export async function docsCommand(options: DocsOptions): Promise<void> {
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc && chmod +x dist/bin/daily-summary.js",
+    "build": "cd ui && npm install && npm run build && cd .. && tsc && chmod +x dist/bin/daily-summary.js",
+    "build:backend": "tsc && chmod +x dist/bin/daily-summary.js",
+    "build:frontend": "cd ui && npm run build",
     "prepare": "npm run build",
     "dev": "tsx src/bin/daily-summary.ts",
     "start": "node dist/bin/daily-summary.js",
@@ -2980,475 +4087,18 @@ export async function docsCommand(options: DocsOptions): Promise<void> {
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
     "@linear/sdk": "^84.0.0",
-    "commander": "^12.1.0"
+    "commander": "^12.1.0",
+    "express": "^4.21.0",
+    "open": "^10.1.0"
   },
   "devDependencies": {
+    "@types/express": "^4.17.21",
     "@types/node": "^22.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "vitest": "^2.0.0"
   }
 }
-</file>
-
-<file path="README.md">
-# daily-commit-summarizer
-
-`daily-commit-summarizer` is a TypeScript CLI that turns local Git history into polished daily stand-up summaries. It scans commits for a configurable time window, normalizes noisy diffs, asks Gemini to summarize the work, and exports Markdown or HTML reports. It can also enrich summaries with Linear issue context and detect documentation follow-up tasks from recent code changes.
-
-The project is built for developers who want a low-friction way to answer, "What did I ship recently, and what should I tell the team?"
-
-An example of the output below -
-
-```markdown
-## Summary
-
-**Features**
-- Added OAuth2 provider support with PKCE flow
-
-**Bug Fixes**
-- Prevented empty query errors in search endpoint
-
-**Chores**
-- Upgraded Node.js runtime to v20.10 LTS
-
-## By Issue
-
-### ENG-123: Add OAuth2 provider support _(In Progress / High)_
-- `1aa6217` feat: add OAuth2 provider support (+45/-3)
-```
-
-## Table of Contents
-
-- [What It Does](#what-it-does)
-- [Architecture](#architecture)
-- [Directory Structure](#directory-structure)
-- [Requirements](#requirements)
-- [Local Setup](#local-setup)
-- [Environment Variables](#environment-variables)
-- [Configuration](#configuration)
-- [Commands](#commands)
-- [Linear Integration](#linear-integration)
-- [Generated Files](#generated-files)
-- [Troubleshooting](#troubleshooting)
-- [Development Notes](#development-notes)
-- [License](#license)
-
-## What It Does
-
-- Scans commits from a local Git repository for a window such as `24h`, `2d`, or `1w`.
-- Filters noisy files, binary diffs, lockfiles, build output, and optional repo-specific exclusions.
-- Categorizes work into features, fixes, tests, docs, chores, performance, refactors, and other changes.
-- Uses Gemini to produce a stand-up-ready summary.
-- Exports reports to `~/.daily-summary/reports/` as Markdown, HTML, or both.
-- Optionally groups commits by Linear issue when commit messages or branches include identifiers like `ENG-123`.
-- Detects documentation-impacting changes and exports reviewable doc tasks.
-- Supports local configuration, global configuration, interactive setup, history lookup, and scheduled daily runs.
-
-## Architecture
-
-### Report Generation Flow
-
-```mermaid
-flowchart TD
-  A["CLI command: daily-summary run"] --> B["Load configuration"]
-  B --> C["Read git commits"]
-  C --> D["Normalize diffs and categorize commits"]
-  D --> E["Build Gemini prompt"]
-  E --> F["Generate summary with Gemini"]
-  D --> G{"--with-linear?"}
-  G -->|Yes| H["Fetch Linear issue metadata"]
-  G -->|No| I["Skip issue enrichment"]
-  F --> J["Render report Markdown"]
-  H --> J
-  I --> J
-  J --> K{"Editor review enabled?"}
-  K -->|Yes| L["Open report in editor"]
-  K -->|No| M["Use generated report"]
-  L --> N["Export report"]
-  M --> N
-  N --> O["Write Markdown / HTML files"]
-```
-
-### Documentation Task Flow
-
-```mermaid
-flowchart TD
-  A["CLI command: daily-summary docs"] --> B["Load configuration"]
-  B --> C["Read git commits"]
-  C --> D["Normalize diffs"]
-  D --> E["Detect documentation signals"]
-  E --> F{"Signals found?"}
-  F -->|No| G["Exit with no tasks"]
-  F -->|Yes| H["Generate doc task candidates"]
-  H --> I{"LLM enabled and configured?"}
-  I -->|Yes| J["Enrich task descriptions with Gemini"]
-  I -->|No| K["Use template descriptions"]
-  J --> L["Interactive review or auto-accept"]
-  K --> L
-  L --> M{"--create-issues?"}
-  M -->|Yes| N["Prompt to create Linear issues"]
-  M -->|No| O["Skip issue creation"]
-  N --> P["Export accepted tasks"]
-  O --> P
-  P --> Q["Write Markdown / JSON files"]
-```
-
-### Configuration Resolution
-
-```mermaid
-flowchart TD
-  A["Built-in defaults"] --> B["Global JSON: ~/.daily-summary/config.json"]
-  B --> C["Repo JSON: .daily-summary.json"]
-  D["Existing shell environment"] --> E["Process env"]
-  F["Global env file: ~/.daily-summary/.env"] --> E
-  G["Repo env file: ./.env"] --> E
-  E --> H["GEMINI_API_KEY / GEMINI_MODEL / LINEAR_API_KEY"]
-  C --> I["Merged runtime config"]
-  H --> I
-```
-
-The env file loader only fills keys that are not already present in the process environment. In practice, exported shell variables win over env files. JSON config is merged separately, with repo-local `.daily-summary.json` overriding global JSON defaults.
-
-## Directory Structure
-
-```text
-.
-|-- src/
-|   |-- bin/
-|   |   `-- daily-summary.ts        # CLI executable entrypoint
-|   |-- cli/
-|   |   |-- index.ts                # Commander command registration
-|   |   |-- review.ts               # Editor-based review helper
-|   |   `-- commands/               # run, docs, config, doctor, export, history, schedule
-|   |-- config/
-|   |   |-- loader.ts               # Defaults, env files, JSON config, masking helpers
-|   |   `-- types.ts                # Runtime configuration types
-|   |-- docs/
-|   |   |-- detector.ts             # Documentation-impact signal rules
-|   |   |-- generator.ts            # Doc task generation and optional LLM enrichment
-|   |   `-- exporter.ts             # Markdown / JSON doc task export and docs-repo push
-|   |-- git/
-|   |   |-- ingestion.ts            # Git log/show collection
-|   |   `-- normalizer.ts           # Diff cleanup, categorization, budget limiting
-|   |-- integrations/
-|   |   |-- extractor.ts            # Issue reference extraction from commits/branches
-|   |   `-- linear/client.ts        # Linear API wrapper
-|   |-- llm/
-|   |   |-- gemini.ts               # Gemini provider
-|   |   `-- prompts.ts              # Summary prompt construction
-|   `-- report/
-|       |-- generator.ts            # Report model and Markdown rendering
-|       |-- exporter.ts             # Report file writing and lookup
-|       `-- html.ts                 # HTML report rendering
-|-- .env.example                    # Local env template for source checkout
-|-- package.json                    # npm scripts, package metadata, CLI binary mapping
-|-- tsconfig.json                   # TypeScript compiler configuration
-`-- vitest.config.ts                # Test runner configuration
-```
-
-## Requirements
-
-- Node.js 18 or newer
-- npm
-- Git available in `PATH`
-- A Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey)
-- Optional: a Linear API key for issue enrichment and doc-task issue creation
-
-## Local Setup
-
-Use this flow when evaluating the project from source.
-
-```bash
-git clone https://github.com/vedantnandoskar/daily-commit-summarizer.git
-cd daily-commit-summarizer
-npm install
-cp .env.example .env
-```
-
-Edit `.env` and set at least:
-
-```bash
-GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-2.0-flash-lite
-```
-
-Then verify the setup:
-
-```bash
-npm run dev -- doctor
-```
-
-Generate a report for this repository:
-
-```bash
-npm run dev -- run --repo . --since 24h --no-edit
-```
-
-Build and run the compiled CLI:
-
-```bash
-npm run build
-npm start -- run --repo . --since 24h --no-edit
-```
-
-For local CLI-style testing, you can also link the package:
-
-```bash
-npm link
-daily-summary doctor
-daily-summary run --repo . --since 24h --no-edit
-```
-
-Reports are written to `~/.daily-summary/reports/` by default.
-
-## Environment Variables
-
-| Variable | Required | Used by | Description |
-|---|---:|---|---|
-| `GEMINI_API_KEY` | Yes | `run`, `doctor`, `docs` with LLM enrichment | Gemini API key used for summary generation and optional doc-task enrichment. |
-| `GEMINI_MODEL` | Yes | `run`, `doctor`, `docs` with LLM enrichment | Gemini model name. The setup wizard defaults to `gemini-2.0-flash-lite`. |
-| `LINEAR_API_KEY` | No | `run --with-linear`, `docs --create-issues`, `doctor` | Linear personal API key for fetching issue metadata or creating doc-task issues. |
-
-Environment files:
-
-| File | Purpose |
-|---|---|
-| `.env.example` | Safe template for local development. Commit this file. |
-| `.env` | Repo-local secrets for source checkouts. Do not commit this file. |
-| `~/.daily-summary/.env` | Global secrets created by `daily-summary config init`. Useful when running the CLI across many repos. |
-
-## Configuration
-
-The CLI starts with built-in defaults, merges JSON config, then applies supported environment variables.
-
-Default runtime config:
-
-| Field | Default | Description |
-|---|---|---|
-| `repoPath` | `.` | Repository to scan. |
-| `branch` | `main` | Branch passed to `git log`. |
-| `timeWindow` | `24h` | Commit window. Supports values like `30m`, `24h`, `2d`, `1w`, or a Git-compatible date string. |
-| `llm.summaryLength` | `medium` | Summary length: `short`, `medium`, or `long`. |
-| `output.dir` | `~/.daily-summary/reports` | Destination for generated reports. |
-| `output.format` | `markdown` via command default | Report format: `markdown`, `html`, or `both`. |
-
-Config files:
-
-| File | Scope | Notes |
-|---|---|---|
-| `~/.daily-summary/config.json` | Global | Written by `daily-summary config set --global`. Good for non-secret defaults shared across repos. |
-| `.daily-summary.json` | Repo-local | Written by `daily-summary config set`. Good for repo-specific defaults. |
-
-Example repo-local `.daily-summary.json`:
-
-```json
-{
-  "branch": "main",
-  "timeWindow": "24h",
-  "excludePaths": ["**/package-lock.json", "**/*.snap"],
-  "focusAreas": ["src/", "api/"],
-  "llm": {
-    "summaryLength": "medium"
-  },
-  "output": {
-    "format": "both",
-    "dir": "~/.daily-summary/reports"
-  },
-  "integrations": {
-    "linear": {
-      "teamId": "team-id-for-doc-task-creation"
-    },
-    "docsRepo": {
-      "path": "/path/to/docs-repo",
-      "outputDir": "doc-tasks",
-      "autoCommit": false
-    }
-  }
-}
-```
-
-Configuration keys:
-
-| Key | Description |
-|---|---|
-| `branch` | Default branch to scan. |
-| `timeWindow` | Default commit window. |
-| `repoPath` | Default repo path when `--repo` is omitted. |
-| `excludePaths` | Array of patterns or substrings excluded from normalized diffs. |
-| `focusAreas` | Array of patterns or substrings; commits outside these areas are skipped. |
-| `llm.model` | Model name when set through JSON config. Env `GEMINI_MODEL` also works and is preferred for local setup. |
-| `llm.summaryLength` | `short`, `medium`, or `long`. |
-| `output.dir` | Report output directory. `~` is expanded when exporting reports. |
-| `output.format` | `markdown`, `html`, or `both`. |
-| `integrations.linear.teamId` | Linear team ID required for `docs --create-issues`. |
-| `integrations.docsRepo.path` | Local docs repository path for `daily-summary docs push`. |
-| `integrations.docsRepo.outputDir` | Subdirectory inside the docs repo. Defaults to `doc-tasks`. |
-| `integrations.docsRepo.autoCommit` | Whether `docs push` should commit generated doc-task files. |
-
-Secrets should live in `.env`, `~/.daily-summary/.env`, or exported shell variables, not in committed JSON config.
-
-## Commands
-
-### npm Scripts
-
-| Command | Description |
-|---|---|
-| `npm install` | Install dependencies. |
-| `npm run dev -- <command>` | Run the TypeScript CLI directly with `tsx`. |
-| `npm run build` | Compile TypeScript and mark the built CLI executable. |
-| `npm start -- <command>` | Run the compiled CLI from `dist/`. |
-| `npm test` | Run the Vitest test suite. |
-| `npm run typecheck` | Run TypeScript without emitting files. |
-
-### CLI Commands
-
-| Command | Description |
-|---|---|
-| `daily-summary run` | Scan commits and generate a stand-up summary. |
-| `daily-summary docs` | Detect documentation tasks from recent commits and review them interactively. |
-| `daily-summary docs push` | Push saved doc-task Markdown into a configured local docs repo. |
-| `daily-summary doctor` | Validate config and test Gemini/Linear connectivity. |
-| `daily-summary config init` | Interactive setup wizard that writes secrets to `~/.daily-summary/.env`. |
-| `daily-summary config show` | Print the merged config with API keys masked. |
-| `daily-summary config get <key>` | Read a config value by dot path. |
-| `daily-summary config set <key> <value>` | Set a repo-local config value. Use `--global` for global config. |
-| `daily-summary history` | List saved reports or open a previous report in `$EDITOR`. |
-| `daily-summary export` | Re-export or open the latest generated report. |
-| `daily-summary schedule` | Create or remove a daily scheduled run. |
-
-### `run` Options
-
-```text
---since <duration>   time window: 24h, 2d, 1w, etc.  (default: 24h)
---branch <name>      git branch to scan               (defaults to config)
---repo <path>        path to the repo to scan         (default: current directory/config)
---length <size>      short | medium | long            (default: medium)
---format <fmt>       markdown | html | both           (default: markdown)
---no-edit            skip editor review, export directly
---with-linear        enrich report with Linear issue data
-```
-
-Examples:
-
-```bash
-daily-summary run --since 24h --no-edit
-daily-summary run --repo ~/Projects/backend-api --since 7d --format both --no-edit
-daily-summary run --since 1w --with-linear --no-edit
-```
-
-### `docs` Options
-
-```text
---since <duration>   time window                      (default: 24h)
---branch <name>      git branch to analyze
---repo <path>        path to the repo to analyze      (default: current directory/config)
---no-review          auto-accept all detected tasks
---format <fmt>       markdown | json | both           (default: markdown)
---no-llm             use templates instead of LLM
---create-issues      prompt to create a Linear issue per accepted task
-```
-
-Examples:
-
-```bash
-daily-summary docs --since 7d
-daily-summary docs --since 7d --no-review --format both
-daily-summary docs --since 7d --create-issues
-daily-summary docs push --path ~/docs-repo --auto-commit
-```
-
-### `config` Examples
-
-```bash
-daily-summary config init
-daily-summary config show
-daily-summary config get output.dir
-daily-summary config set branch main
-daily-summary config set output.format both
-daily-summary config set integrations.linear.teamId <team-id>
-daily-summary config set integrations.docsRepo.path /path/to/docs-repo
-daily-summary config set output.dir ~/.daily-summary/reports --global
-```
-
-### `history`, `export`, and `schedule`
-
-```bash
-daily-summary history
-daily-summary history --last
-daily-summary history --open 2026-05-18
-
-daily-summary export
-daily-summary export --date 2026-05-18 --open
-
-daily-summary schedule --time 08:30
-daily-summary schedule --remove
-```
-
-On macOS, scheduling writes a LaunchAgent plist under `~/Library/LaunchAgents/`. On Linux and other platforms, the command prints a crontab line to add manually.
-
-## Linear Integration
-
-Linear support is optional.
-
-For report enrichment, `daily-summary run --with-linear` extracts issue identifiers from commit messages and the current branch name, fetches issue metadata, and groups commits under issue headings.
-
-```bash
-daily-summary config init
-daily-summary doctor
-daily-summary run --since 7d --with-linear --no-edit
-```
-
-For documentation tasks, `daily-summary docs --create-issues` can create one Linear issue per accepted task. This requires both `LINEAR_API_KEY` and `integrations.linear.teamId`.
-
-```bash
-daily-summary config set integrations.linear.teamId <team-id>
-daily-summary docs --since 7d --create-issues
-```
-
-## Generated Files
-
-| Output | Default location |
-|---|---|
-| Stand-up reports | `~/.daily-summary/reports/<date>-<repo>.md` and optionally `.html` |
-| Documentation tasks | `~/.daily-summary/doc-tasks/<date>-<repo>.md` and optionally `.json` |
-| Global secrets | `~/.daily-summary/.env` |
-| Global config | `~/.daily-summary/config.json` |
-| Schedule logs | `~/.daily-summary/logs/` |
-
-## Troubleshooting
-
-Run `daily-summary doctor` first. It checks required config and tests API connectivity.
-
-| Problem | Fix |
-|---|---|
-| `GEMINI_API_KEY is not set` | Run `daily-summary config init`, edit `.env`, or export `GEMINI_API_KEY`. |
-| `GEMINI_MODEL is not set` | Run `daily-summary config init`, edit `.env`, or export `GEMINI_MODEL=gemini-2.0-flash-lite`. |
-| No commits are found | Try `--since 7d`, check `--branch`, or pass `--repo /path/to/repo`. |
-| Linear enrichment is skipped | Set `LINEAR_API_KEY` and run with `--with-linear`. |
-| `docs --create-issues` cannot create issues | Set `LINEAR_API_KEY` and `integrations.linear.teamId`. |
-| Editor review is inconvenient in automation | Use `--no-edit` for reports or `--no-review` for doc tasks. |
-
-## Development Notes
-
-The codebase intentionally keeps the CLI modular:
-
-- command handlers orchestrate flows but delegate work to domain modules;
-- Git ingestion and diff normalization are separate from LLM prompting;
-- report generation is separated from file export;
-- Linear integration is optional and isolated under `src/integrations`;
-- documentation-task detection works without an LLM and uses Gemini only for richer task wording when configured.
-
-Before opening a change, run:
-
-```bash
-npm run typecheck
-npm test
-```
-
-## License
-
-MIT
 </file>
 
 <file path="src/cli/commands/mintlify.ts">
@@ -4012,6 +4662,108 @@ Rules:
 - No preamble — start directly with the first bullet`
   }`;
 }
+</file>
+
+<file path="README.md">
+# daily-commit-summarizer
+
+[![npm version](https://img.shields.io/npm/v/daily-commit-summarizer.svg)](https://www.npmjs.com/package/daily-commit-summarizer)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-online-6366f1)](https://vedantnandoskar.github.io/daily-commit-summarizer/)
+
+`daily-commit-summarizer` is a TypeScript CLI that turns local Git history into polished daily stand-up summaries. Point it at any repo, choose a time window, and get a structured, AI-generated report — categorised by feature, fix, refactor, test, chore, and more.
+
+**[Full documentation →](https://vedantnandoskar.github.io/daily-commit-summarizer/)**
+
+## What It Does
+
+- Scans commits for a configurable window (`24h`, `2d`, `1w`, …) and generates a stand-up-ready summary with Gemini
+- Filters noise — lock files, binaries, build output, and configurable excludes
+- Enriches reports with Linear issue metadata when commit messages reference tickets
+- Detects commits that need documentation follow-up and produces a reviewable task list
+- Triggers, polls, and summarises Mintlify documentation deployments
+- Exports Markdown and styled HTML reports; supports scheduled daily runs
+
+## Quick Start
+
+```bash
+npm install -g daily-commit-summarizer
+daily-summary config init          # set your Gemini API key
+daily-summary doctor               # verify setup
+daily-summary run --since 24h --no-edit
+```
+
+## Example Output
+
+```markdown
+## Summary
+
+**Features**
+- Added OAuth2 provider support with PKCE flow
+
+**Bug Fixes**
+- Prevented empty query errors in search endpoint
+
+**Chores**
+- Upgraded Node.js runtime to v20.10 LTS
+
+## By Issue
+
+### ENG-123: Add OAuth2 provider support _(In Progress / High)_
+- `1aa6217` feat: add OAuth2 provider support (+45/-3)
+```
+
+## Architecture
+
+### Report Generation Flow
+
+```mermaid
+flowchart TD
+  A["CLI command: daily-summary run"] --> B["Load configuration"]
+  B --> C["Read git commits"]
+  C --> D["Normalize diffs and categorize commits"]
+  D --> E["Build Gemini prompt"]
+  E --> F["Generate summary with Gemini"]
+  D --> G{"--with-linear?"}
+  G -->|Yes| H["Fetch Linear issue metadata"]
+  G -->|No| I["Skip issue enrichment"]
+  F --> J["Render report Markdown"]
+  H --> J
+  I --> J
+  J --> K{"Editor review enabled?"}
+  K -->|Yes| L["Open report in editor"]
+  K -->|No| M["Use generated report"]
+  L --> N["Export report"]
+  M --> N
+  N --> O["Write Markdown / HTML files"]
+```
+
+### Configuration Resolution
+
+```mermaid
+flowchart TD
+  A["Built-in defaults"] --> E["Merged config"]
+  B["~/.daily-summary/config.json"] --> E
+  C[".daily-summary.json"] --> E
+  D["Environment variables"] --> E
+  E --> F["Runtime config"]
+```
+
+## Requirements
+
+- Node.js >= 18
+- Git available in `PATH`
+- [Gemini API key](https://aistudio.google.com/apikey) (free tier available)
+
+## Documentation
+
+The full reference — all commands, flags, configuration options, integration guides, and development notes — lives at:
+
+**https://vedantnandoskar.github.io/daily-commit-summarizer/**
+
+## License
+
+MIT
 </file>
 
 <file path="src/config/types.ts">
@@ -4684,6 +5436,7 @@ import { loadConfig } from '../config/loader';
 import { doctorCommand } from './commands/doctor';
 import { exportDocTasks, pushToDocsRepo } from '../docs/exporter';
 import { mintlifyCommand } from './commands/mintlify';
+import { uiCommand } from './commands/ui';
 
 const program = new Command();
 
@@ -4876,6 +5629,11 @@ program
   .action((options) => {
     scheduleCommand({ time: options.time, remove: options.remove });
   });
+
+program
+  .command('ui')
+  .description('Start the local web UI on port 7331')
+  .action(async () => { await uiCommand(); });
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   const message = err instanceof Error ? err.message : String(err);

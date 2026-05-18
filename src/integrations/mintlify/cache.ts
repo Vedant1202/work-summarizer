@@ -18,8 +18,17 @@ function readDeployCache(): DeployCache {
 }
 
 export function appendDeployRecord(record: MintlifyDeployRecord): void {
+  upsertDeployRecord(record);
+}
+
+export function upsertDeployRecord(record: MintlifyDeployRecord): void {
   const cache = readDeployCache();
-  cache.deployments.unshift(record);
+  const idx = cache.deployments.findIndex((d) => d.statusId === record.statusId);
+  if (idx >= 0) {
+    cache.deployments[idx] = record;
+  } else {
+    cache.deployments.unshift(record);
+  }
   fs.mkdirSync(path.dirname(CACHE_PATH), { recursive: true });
   fs.writeFileSync(CACHE_PATH, JSON.stringify(cache, null, 2) + '\n', 'utf8');
 }
