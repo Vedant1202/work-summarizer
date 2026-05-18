@@ -60,7 +60,7 @@ export function ingestCommits(config: Config, overrides: { since?: string; branc
 
   // Get list of SHAs in range, null-delimited for reliable parsing
   const shaList = execSync(
-    `git log ${branch} --since="${since}" --format=%H${NULL_BYTE}`,
+    `git log ${branch} --since="${since}" --format=%H%x00`,
     gitOpts
   )
     .split(NULL_BYTE)
@@ -74,7 +74,7 @@ export function ingestCommits(config: Config, overrides: { since?: string; branc
   for (const sha of shaList) {
     // Get commit metadata
     const meta = execSync(
-      `git show --no-patch --format="%an${NULL_BYTE}%aI${NULL_BYTE}%s" ${sha}`,
+      `git show --no-patch --format="%an%x00%aI%x00%s" ${sha}`,
       gitOpts
     ).trim();
 

@@ -36,4 +36,16 @@ export class GeminiProvider {
 
     return text.trim();
   }
+
+  async rawPrompt(prompt: string): Promise<string> {
+    const genModel = this.client.getGenerativeModel({ model: this.model });
+    let result;
+    try {
+      result = await genModel.generateContent(prompt);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Gemini API error: ${message}`);
+    }
+    return result.response.text().trim();
+  }
 }

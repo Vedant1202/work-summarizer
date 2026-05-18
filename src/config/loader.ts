@@ -1,18 +1,18 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { Config, ConfigScope } from './types';
+import { Config, ConfigScope, IntegrationsConfig } from './types';
 
-const GLOBAL_CONFIG_DIR = path.join(os.homedir(), '.daily-summary');
+export const GLOBAL_CONFIG_DIR = path.join(os.homedir(), '.daily-summary');
 const GLOBAL_CONFIG_FILE = path.join(GLOBAL_CONFIG_DIR, 'config.json');
 const LOCAL_CONFIG_FILE = '.daily-summary.json';
+export const GLOBAL_ENV_FILE = path.join(GLOBAL_CONFIG_DIR, '.env');
 
 const DEFAULTS: Config = {
   repoPath: '.',
   branch: 'main',
   timeWindow: '24h',
   llm: {
-    model: process.env.GEMINI_MODEL,
     summaryLength: 'medium',
   },
   output: {
@@ -29,16 +29,62 @@ function readJsonFile(filePath: string): Partial<Config> {
   }
 }
 
+function mergeIntegrations(
+  base?: IntegrationsConfig,
+  override?: IntegrationsConfig,
+): IntegrationsConfig | undefined {
+  if (!base && !override) return undefined;
+  return {
+    ...base,
+    ...override,
+    linear: { ...(base?.linear ?? {}), ...(override?.linear ?? {}) },
+    docsRepo: { ...(base?.docsRepo ?? {}), ...(override?.docsRepo ?? {}) },
+  };
+}
+
 function deepMerge(base: Config, override: Partial<Config>): Config {
   return {
     ...base,
     ...override,
     llm: { ...base.llm, ...(override.llm ?? {}) },
     output: { ...base.output, ...(override.output ?? {}) },
+    integrations: mergeIntegrations(base.integrations, override.integrations),
   };
 }
 
+function loadEnvFile(envPath: string): void {
+  if (!fs.existsSync(envPath)) return;
+  try {
+    const content = fs.readFileSync(envPath, 'utf8');
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const index = trimmed.indexOf('=');
+      if (index > 0) {
+        const key = trimmed.substring(0, index).trim();
+        let value = trimmed.substring(index + 1).trim();
+        if (
+          (value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))
+        ) {
+          value = value.substring(1, value.length - 1);
+        }
+        if (key && !process.env[key]) {
+          process.env[key] = value;
+        }
+      }
+    }
+  } catch {
+    // Ignore reading errors
+  }
+}
+
 export function loadConfig(): Config {
+  // Global ~/.daily-summary/.env loaded first (lowest priority)
+  loadEnvFile(path.join(GLOBAL_CONFIG_DIR, '.env'));
+  // Project-local .env overrides global (higher priority, won't overwrite already-set vars)
+  loadEnvFile(path.join(process.cwd(), '.env'));
+
   const global = readJsonFile(GLOBAL_CONFIG_FILE);
   const local = readJsonFile(LOCAL_CONFIG_FILE);
 
@@ -54,6 +100,13 @@ export function loadConfig(): Config {
   const envModel = process.env.GEMINI_MODEL;
   if (envModel) {
     config.llm.model = envModel;
+  }
+
+  const linearKey = process.env.LINEAR_API_KEY;
+  if (linearKey) {
+    if (!config.integrations) config.integrations = {};
+    if (!config.integrations.linear) config.integrations.linear = {};
+    config.integrations.linear.apiKey = linearKey;
   }
 
   return config;
@@ -99,10 +152,41 @@ export function getNestedKey(obj: unknown, dotPath: string): unknown {
   }, obj as unknown);
 }
 
+export function writeEnvKey(filePath: string, key: string, value: string): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  let lines: string[] = [];
+  try {
+    lines = fs.readFileSync(filePath, 'utf8').split('\n');
+  } catch {
+    // file doesn't exist yet — start empty
+  }
+
+  const keyPrefix = `${key}=`;
+  const newLine = `${key}=${value}`;
+  const idx = lines.findIndex((l) => l.startsWith(keyPrefix));
+  if (idx >= 0) {
+    lines[idx] = newLine;
+  } else {
+    if (lines.length > 0 && lines[lines.length - 1] === '') {
+      lines.splice(lines.length - 1, 0, newLine);
+    } else {
+      lines.push(newLine);
+    }
+  }
+
+  fs.writeFileSync(filePath, lines.join('\n'), 'utf8');
+  if (!fs.readFileSync(filePath, 'utf8').endsWith('\n')) {
+    fs.appendFileSync(filePath, '\n');
+  }
+}
+
 export function maskConfig(config: Config): Config {
   const masked = JSON.parse(JSON.stringify(config)) as Config;
   if (masked.llm.apiKey) {
     masked.llm.apiKey = '***';
+  }
+  if (masked.integrations?.linear?.apiKey) {
+    masked.integrations.linear.apiKey = '***';
   }
   return masked;
 }

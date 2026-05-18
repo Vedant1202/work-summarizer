@@ -1,0 +1,11 @@
+src/
+tsconfig.json
+.env
+.env.example
+.plans/
+.claude/
+.agents/
+agent-skills/
+install.sh
+claude-install.log
+*.daily-summary.json

@@ -1,37 +1,104 @@
-import { SummaryLength } from '../config/types';
+import { SummaryLength, CommitCategory } from '../config/types';
 import { NormalizedCommit } from '../git/normalizer';
 
-const LENGTH_INSTRUCTIONS: Record<SummaryLength, string> = {
-  short: 'Write 3–5 concise bullet points. Each bullet should be one short sentence.',
-  medium:
-    'Write a short paragraph (4–6 sentences) grouping related changes, followed by a bullet list of key highlights.',
-  long: 'Write a detailed breakdown: an opening paragraph, then categorized sections (Features, Fixes, Refactors, Docs/Chores) each with bullet points. Include file-level detail where meaningful.',
+// Category display labels (order defines section order in output)
+const CATEGORY_LABELS: Record<CommitCategory, string> = {
+  feat: 'Features',
+  fix: 'Bug Fixes',
+  perf: 'Performance',
+  refactor: 'Refactors & Improvements',
+  test: 'Tests',
+  docs: 'Documentation',
+  chore: 'Chores & Maintenance',
+  other: 'Other Changes',
 };
 
-function formatCommit(c: NormalizedCommit): string {
-  const files = c.changedFiles.length > 0 ? `\nFiles: ${c.changedFiles.join(', ')}` : '';
-  const stats = `+${c.diffStat.insertions}/-${c.diffStat.deletions}`;
-  const diff = c.diff ? `\n--- diff ---\n${c.diff}\n--- end diff ---` : '';
-  return `Commit ${c.sha.slice(0, 7)} by ${c.author} at ${c.timestamp}\n${c.message} (${stats})${files}${diff}`;
+const CATEGORY_ORDER: CommitCategory[] = ['feat', 'fix', 'perf', 'refactor', 'test', 'docs', 'chore', 'other'];
+
+const LENGTH_INSTRUCTIONS: Record<SummaryLength, string> = {
+  short: `Write 3–5 bullet points covering only the most impactful changes (features and fixes first).
+- Each bullet: max 80 characters
+- One section maximum — no category headers
+- Format: "• [Past-tense action] [brief impact if clear]"`,
+
+  medium: `Write a grouped summary with section headers for each category that has commits.
+- 2–4 bullets per populated section
+- Each bullet: max 100 characters
+- Sections appear in this order (omit empty ones): Features → Bug Fixes → Performance → Refactors & Improvements → Tests → Documentation → Chores & Maintenance
+- Format each bullet: "- [Past-tense action] – [user/team impact, if discernible]"`,
+
+  long: `Write a detailed grouped summary.
+- Open with a 2-sentence "theme" paragraph summarizing the day's overall direction
+- Then provide section headers for each category that has commits
+- Up to 8 bullets per section; each bullet max 120 characters
+- Include file-level detail (e.g., "in auth/provider.ts") where it adds context
+- Sections in order: Features → Bug Fixes → Performance → Refactors & Improvements → Tests → Documentation → Chores & Maintenance
+- Format each bullet: "- [Past-tense action] – [impact or detail]"`,
+};
+
+const SYSTEM_RULES = `You are a senior engineering writer generating a professional daily stand-up summary from git commit data.
+
+VOICE & STYLE RULES (follow strictly):
+- Use past-tense imperative voice: "Added X", "Fixed Y", "Improved Z" — NOT "Adding X" or "We added X"
+- Be specific about what changed and why it matters; avoid vague language ("cleaned up code", "made improvements")
+- Do not invent performance metrics, numbers, or impact claims that are not present in the commit messages or diffs
+- Do not include commit SHAs, author names, or timestamps in the output
+- Omit trivial commits: whitespace-only changes, lock file bumps, minor version pins with no feature impact
+- If a commit message includes "BREAKING CHANGE" or "!", prefix that bullet with "⚠ BREAKING:"
+- If a commit message mentions a blocker, dependency wait, or TODO, prefix that bullet with "🔴 BLOCKED:"
+- Write for a technical audience (engineers and tech leads) — be precise but concise
+
+QUALITY BAR:
+- A reader should understand what shipped, what broke, and what improved in under 30 seconds
+- Each bullet should be independently meaningful — no vague fillers
+- Prioritize user-visible and system-visible impact over implementation details`;
+
+function formatCommitForPrompt(c: NormalizedCommit): string {
+  const stat = `+${c.diffStat.insertions}/-${c.diffStat.deletions}`;
+  const files = c.changedFiles.length > 0 ? ` → ${c.changedFiles.slice(0, 4).join(', ')}${c.changedFiles.length > 4 ? ', …' : ''}` : '';
+  const diff = c.diff ? `\n  diff:\n${c.diff.split('\n').slice(0, 20).map((l) => '  ' + l).join('\n')}` : '';
+  return `[${c.category}] ${c.message} (${stat})${files}${diff}`;
+}
+
+function groupCommitsByCategory(commits: NormalizedCommit[]): Map<CommitCategory, NormalizedCommit[]> {
+  const groups = new Map<CommitCategory, NormalizedCommit[]>();
+  for (const commit of commits) {
+    const existing = groups.get(commit.category) ?? [];
+    existing.push(commit);
+    groups.set(commit.category, existing);
+  }
+  return groups;
 }
 
 export function buildSummarizationPrompt(commits: NormalizedCommit[], length: SummaryLength): string {
-  const commitBlock = commits.map(formatCommit).join('\n\n');
+  const groups = groupCommitsByCategory(commits);
 
-  return `You are a technical writer helping a software developer write a daily stand-up summary from their recent git commits.
+  // Build the commit block in category order so the LLM receives pre-organized input
+  const orderedSections = CATEGORY_ORDER
+    .filter((cat) => groups.has(cat))
+    .map((cat) => {
+      const label = CATEGORY_LABELS[cat];
+      const items = groups.get(cat)!.map((c) => `  ${formatCommitForPrompt(c)}`).join('\n');
+      return `### ${label}\n${items}`;
+    })
+    .join('\n\n');
 
+  const commitBlock = orderedSections || commits.map((c) => formatCommitForPrompt(c)).join('\n');
+
+  return `${SYSTEM_RULES}
+
+---
+
+OUTPUT FORMAT:
 ${LENGTH_INSTRUCTIONS[length]}
 
-Guidelines:
-- Focus on WHAT changed and WHY it matters, not HOW it was implemented
-- Group related commits together
-- Use plain language — avoid jargon and implementation minutiae
-- Do not include the commit SHA or author in the output
-- If there are no meaningful changes, say so briefly
+---
 
-Here are the commits from the past day:
+COMMITS (pre-classified by type):
 
 ${commitBlock}
 
-Write the stand-up summary now:`;
+---
+
+Write the stand-up summary now. Follow the format and rules above exactly.`;
 }
