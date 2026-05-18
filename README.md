@@ -4,6 +4,8 @@
 
 The project is built for developers who want a low-friction way to answer, "What did I ship recently, and what should I tell the team?"
 
+An example of the output below -
+
 ```markdown
 ## Summary
 
