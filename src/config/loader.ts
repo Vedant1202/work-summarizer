@@ -38,6 +38,34 @@ function deepMerge(base: Config, override: Partial<Config>): Config {
 }
 
 export function loadConfig(): Config {
+  // Load local .env file if it exists
+  const envPath = path.join(process.cwd(), '.env');
+  if (fs.existsSync(envPath)) {
+    try {
+      const content = fs.readFileSync(envPath, 'utf8');
+      for (const line of content.split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const index = trimmed.indexOf('=');
+        if (index > 0) {
+          const key = trimmed.substring(0, index).trim();
+          let value = trimmed.substring(index + 1).trim();
+          if (
+            (value.startsWith('"') && value.endsWith('"')) ||
+            (value.startsWith("'") && value.endsWith("'"))
+          ) {
+            value = value.substring(1, value.length - 1);
+          }
+          if (key && !process.env[key]) {
+            process.env[key] = value;
+          }
+        }
+      }
+    } catch {
+      // Ignore reading errors for .env
+    }
+  }
+
   const global = readJsonFile(GLOBAL_CONFIG_FILE);
   const local = readJsonFile(LOCAL_CONFIG_FILE);
 
