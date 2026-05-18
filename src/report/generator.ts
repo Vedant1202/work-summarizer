@@ -65,7 +65,7 @@ const PRIORITY_LABELS: Record<number, string> = {
   4: 'Low',
 };
 
-function buildTicketSection(groups: TicketGroup[]): string {
+export function buildTicketSection(groups: TicketGroup[]): string {
   const sections = groups.map((group) => {
     const meta: string[] = [];
     if (group.status) meta.push(group.status);

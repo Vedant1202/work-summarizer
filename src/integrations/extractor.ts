@@ -61,6 +61,6 @@ export function extractIssueRefs(text: string): IssueRef[] {
 }
 
 export function extractIssueRefsFromBranch(branchName: string): IssueRef[] {
-  // Branch names like: feature/ENG-123-add-auth, ENG-456/fix-bug
-  return extractIssueRefs(branchName.replace(/[/_-]/g, ' '));
+  // Replace / and _ separators with spaces, but preserve - so ENG-123 stays intact
+  return extractIssueRefs(branchName.replace(/[/_]/g, ' '));
 }
