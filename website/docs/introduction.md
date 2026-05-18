@@ -100,7 +100,7 @@ src/
 ├── cli/
 │   ├── index.ts               Commander command registration
 │   ├── review.ts              Editor-based review helper
-│   └── commands/              run, docs, mintlify, config, doctor, export, history, schedule
+│   └── commands/              run, ui, docs, mintlify, config, doctor, export, history, schedule
 ├── config/
 │   ├── loader.ts              Defaults, env files, JSON config, masking
 │   └── types.ts               Runtime configuration types
@@ -118,10 +118,14 @@ src/
 ├── llm/
 │   ├── gemini.ts              Gemini provider
 │   └── prompts.ts             Prompt construction
-└── report/
-    ├── generator.ts           Report model + Markdown rendering
-    ├── exporter.ts            Report file writing and lookup
-    └── html.ts                HTML report rendering
+├── report/
+│   ├── generator.ts           Report model + Markdown rendering
+│   ├── exporter.ts            Report file writing and lookup
+│   └── html.ts                HTML report rendering
+└── ui/
+    ├── server.ts              Express app factory
+    └── routes/                API routes: run, reports, config, mintlify, doctor
+ui/                            React + Vite frontend (served by the Express server)
 ```
 
 ## Next Steps

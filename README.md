@@ -16,6 +16,7 @@
 - Detects commits that need documentation follow-up and produces a reviewable task list
 - Triggers, polls, and summarises Mintlify documentation deployments
 - Exports Markdown and styled HTML reports; supports scheduled daily runs
+- Launches a local web UI for reports, run controls, config, and Mintlify management
 
 ## Quick Start
 
@@ -24,26 +25,7 @@ npm install -g daily-commit-summarizer
 daily-summary config init          # set your Gemini API key
 daily-summary doctor               # verify setup
 daily-summary run --since 24h --no-edit
-```
-
-## Example Output
-
-```markdown
-## Summary
-
-**Features**
-- Added OAuth2 provider support with PKCE flow
-
-**Bug Fixes**
-- Prevented empty query errors in search endpoint
-
-**Chores**
-- Upgraded Node.js runtime to v20.10 LTS
-
-## By Issue
-
-### ENG-123: Add OAuth2 provider support _(In Progress / High)_
-- `1aa6217` feat: add OAuth2 provider support (+45/-3)
+daily-summary ui                   # open the web UI at http://localhost:7331
 ```
 
 ## Architecture

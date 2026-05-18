@@ -54,6 +54,8 @@ daily-summary mintlify trigger --production --fire-and-forget
 #   previewUrl: https://preview.mintlify.app/...
 ```
 
+The `statusId` is saved to `~/.daily-summary/mintlify-deployments.json` immediately with `finalStatus: queued`. The record updates to `success` or `failure` in the background once polling completes — so `mintlify history` always reflects in-progress deployments.
+
 You can check the result later:
 
 ```bash
