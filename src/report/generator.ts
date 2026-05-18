@@ -1,5 +1,5 @@
 import path from 'path';
-import { Config } from '../config/types';
+import { Config, CommitCategory } from '../config/types';
 import { NormalizedCommit } from '../git/normalizer';
 
 export interface Report {
@@ -13,9 +13,46 @@ export interface Report {
   content: string;
 }
 
+const CATEGORY_LABELS: Record<CommitCategory, string> = {
+  feat: 'Features',
+  fix: 'Bug Fixes',
+  perf: 'Performance',
+  refactor: 'Refactors & Improvements',
+  test: 'Tests',
+  docs: 'Documentation',
+  chore: 'Chores & Maintenance',
+  other: 'Other Changes',
+};
+
+const CATEGORY_ORDER: CommitCategory[] = ['feat', 'fix', 'perf', 'refactor', 'test', 'docs', 'chore', 'other'];
+
 function formatDate(isoDate?: string): string {
   const d = isoDate ? new Date(isoDate) : new Date();
   return d.toISOString().split('T')[0];
+}
+
+function buildCommitsByCategory(commits: NormalizedCommit[]): string {
+  const groups = new Map<CommitCategory, NormalizedCommit[]>();
+  for (const c of commits) {
+    const list = groups.get(c.category) ?? [];
+    list.push(c);
+    groups.set(c.category, list);
+  }
+
+  const sections = CATEGORY_ORDER
+    .filter((cat) => groups.has(cat))
+    .map((cat) => {
+      const label = CATEGORY_LABELS[cat];
+      const items = groups.get(cat)!
+        .map((c) => {
+          const stat = `+${c.diffStat.insertions}/-${c.diffStat.deletions}`;
+          return `- \`${c.sha.slice(0, 7)}\` ${c.message} (${stat})`;
+        })
+        .join('\n');
+      return `### ${label}\n${items}`;
+    });
+
+  return sections.length > 0 ? sections.join('\n\n') : '_No commits in this period._';
 }
 
 function buildMarkdown(
@@ -26,19 +63,9 @@ function buildMarkdown(
   commits: NormalizedCommit[],
   summary: string,
 ): string {
-  const commitList = commits
-    .map((c) => {
-      const stat = `+${c.diffStat.insertions}/-${c.diffStat.deletions}`;
-      return `- \`${c.sha.slice(0, 7)}\` ${c.message} (${stat})`;
-    })
-    .join('\n');
-
   return `# Daily Stand-up — ${date}
 
-**Repo:** ${repoName}
-**Branch:** ${branch}
-**Period:** last ${timeWindow}
-**Commits:** ${commits.length}
+**Repo:** ${repoName} | **Branch:** ${branch} | **Period:** last ${timeWindow} | **Commits:** ${commits.length}
 
 ---
 
@@ -48,9 +75,9 @@ ${summary}
 
 ---
 
-## Commits
+## Commits by Category
 
-${commitList || '_No commits in this period._'}
+${buildCommitsByCategory(commits)}
 `.trim() + '\n';
 }
 

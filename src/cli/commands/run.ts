@@ -1,5 +1,5 @@
 import { loadConfig } from '../../config/loader';
-import { SummaryLength } from '../../config/types';
+import { SummaryLength, OutputFormat } from '../../config/types';
 import { ingestCommits } from '../../git/ingestion';
 import { normalizeDiff } from '../../git/normalizer';
 import { GeminiProvider } from '../../llm/gemini';
@@ -11,6 +11,7 @@ interface RunOptions {
   since?: string;
   branch?: string;
   length?: string;
+  format?: string;
   edit: boolean;
 }
 
@@ -21,6 +22,8 @@ export async function runCommand(options: RunOptions): Promise<void> {
   if (options.since) config.timeWindow = options.since;
   if (options.branch) config.branch = options.branch;
   if (options.length) config.llm.summaryLength = options.length as SummaryLength;
+
+  const format = (options.format ?? config.output.format ?? 'markdown') as OutputFormat;
 
   if (!config.llm.apiKey) {
     console.error('Error: GEMINI_API_KEY is not set. Export it as an environment variable or run:');
@@ -43,7 +46,7 @@ export async function runCommand(options: RunOptions): Promise<void> {
   }
 
   console.log(`Found ${commits.length} commit(s). Normalizing diffs...`);
-  const normalized = normalizeDiff(commits);
+  const normalized = normalizeDiff(commits, config);
 
   console.log(`Summarizing with ${config.llm.model} (${config.llm.summaryLength})...`);
   const provider = new GeminiProvider(config.llm.apiKey, config.llm.model);
@@ -63,6 +66,8 @@ export async function runCommand(options: RunOptions): Promise<void> {
     }
   }
 
-  const outputPath = exportReport(report, config);
-  console.log(`\nReport saved to: ${outputPath}`);
+  const outputPaths = exportReport(report, config, format);
+  for (const p of outputPaths) {
+    console.log(`Report saved to: ${p}`);
+  }
 }
