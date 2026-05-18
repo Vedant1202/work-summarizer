@@ -28,6 +28,12 @@ export async function runCommand(options: RunOptions): Promise<void> {
     process.exit(1);
   }
 
+  if (!config.llm.model) {
+    console.error('Error: GEMINI_MODEL is not set. Export it as an environment variable or run:');
+    console.error('  daily-summary config set llm.model <model-name>');
+    process.exit(1);
+  }
+
   console.log(`Scanning commits on branch "${config.branch}" since ${config.timeWindow}...`);
   const commits = ingestCommits(config, { since: config.timeWindow, branch: config.branch });
 

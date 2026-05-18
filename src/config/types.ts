@@ -1,7 +1,7 @@
 export type SummaryLength = 'short' | 'medium' | 'long';
 
 export interface LLMConfig {
-  model: string;
+  model?: string;
   summaryLength: SummaryLength;
   apiKey?: string;
 }
