@@ -12,7 +12,7 @@ const DEFAULTS: Config = {
   branch: 'main',
   timeWindow: '24h',
   llm: {
-    model: 'gemini-2.0-flash-lite',
+    model: process.env.GEMINI_MODEL,
     summaryLength: 'medium',
   },
   output: {
@@ -45,10 +45,15 @@ export function loadConfig(): Config {
   let config = deepMerge(DEFAULTS, global);
   config = deepMerge(config, local);
 
-  // Env var overrides for secrets
+  // Env var overrides for secrets/config
   const envKey = process.env.GEMINI_API_KEY;
   if (envKey) {
     config.llm.apiKey = envKey;
+  }
+
+  const envModel = process.env.GEMINI_MODEL;
+  if (envModel) {
+    config.llm.model = envModel;
   }
 
   return config;
