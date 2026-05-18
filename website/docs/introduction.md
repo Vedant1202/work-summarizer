@@ -28,14 +28,13 @@ flowchart TD
   A["CLI: daily-summary run"] --> B["Load configuration"]
   B --> C["Read git commits"]
   C --> D["Normalize diffs and categorize commits"]
-  D --> E["Build Gemini prompt"]
-  E --> F["Generate summary with Gemini"]
-  D --> G{"--with-linear?"}
-  G -->|Yes| H["Fetch Linear issue metadata"]
-  G -->|No| I["Skip issue enrichment"]
-  F --> J["Render report Markdown"]
-  H --> J
-  I --> J
+  D --> E["Generate summary with Gemini"]
+  E --> F{"--with-linear?"}
+  F -->|Yes| G["Fetch Linear issue metadata"]
+  F -->|No| H["Skip Linear enrichment"]
+  G --> I["Detect doc-impact signals"]
+  H --> I
+  I --> J["Render report Markdown"]
   J --> K{"Editor review?"}
   K -->|Yes| L["Open report in $EDITOR"]
   K -->|No| M["Use generated report"]
@@ -72,14 +71,30 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["Built-in defaults"] --> E["Merged config"]
-  B["~/.daily-summary/config.json"] --> E
-  C[".daily-summary.json (repo-local)"] --> E
-  D["Environment variables"] --> E
-  E --> F["Runtime config"]
+  A["Built-in defaults"] --> F["Merged config"]
+  B["~/.daily-summary/config.json"] --> F
+  C[".daily-summary.json (repo-local)"] --> F
+  D["~/.daily-summary/.env + ./.env"] --> E["process.env vars"]
+  E --> F
+  F --> G["Runtime config"]
 ```
 
-Environment variables take the highest priority. Shell-exported values override anything in `.env` files.
+Resolution priority (lowest → highest): built-in defaults → global JSON → local JSON → `.env` files → shell-exported environment variables. Shell-exported values override anything written in `.env` files.
+
+### Web UI Flow
+
+```mermaid
+flowchart TD
+  A["CLI: daily-summary ui"] --> B["Express server :7331"]
+  B --> C["Serves React SPA"]
+  C --> D["Browser opens http://localhost:7331"]
+  D --> E{"Page"}
+  E -->|Dashboard| F["POST /api/run → runCommand"]
+  E -->|Reports| G["GET /api/reports → report cache"]
+  E -->|Config| H["GET/POST /api/config → config files"]
+  E -->|Mintlify| I["GET/POST /api/mintlify/* → Mintlify API + local cache"]
+  E -->|Doctor| J["GET /api/doctor → connectivity checks"]
+```
 
 ## Generated Files
 
