@@ -8,6 +8,7 @@ import { generateDocTasks } from '../../docs/generator';
 import { exportDocTasks } from '../../docs/exporter';
 import { openInEditor } from '../review';
 import { DocTask, DocExportFormat } from '../../docs/types';
+import { LinearIntegrationClient } from '../../integrations/linear/client';
 
 interface DocsOptions {
   since?: string;
@@ -15,6 +16,7 @@ interface DocsOptions {
   review: boolean;
   format?: string;
   llm: boolean;
+  createIssues: boolean;
 }
 
 const SEVERITY_COLOR: Record<string, string> = {
@@ -125,6 +127,77 @@ async function reviewTasks(tasks: DocTask[]): Promise<DocTask[]> {
   return reviewed;
 }
 
+function buildIssueBody(task: DocTask): string {
+  const lines = [
+    task.description,
+    '',
+    `**Commit:** \`${task.commitSha.slice(0, 7)}\` ${task.commitMessage}`,
+    `**Trigger file:** \`${task.triggerFile}\``,
+    '',
+    '## Action Items',
+    ...task.actionItems.map((item) => `- [ ] ${item}`),
+  ];
+  if (task.suggestedDocFiles.length > 0) {
+    lines.push('', '## Suggested Documentation Files', ...task.suggestedDocFiles.map((f) => `- \`${f}\``));
+  }
+  return lines.join('\n');
+}
+
+async function promptYesNo(prompt: string): Promise<boolean> {
+  process.stdout.write(prompt);
+  return new Promise((resolve) => {
+    if (!process.stdin.isTTY) {
+      process.stdout.write('n\n');
+      resolve(false);
+      return;
+    }
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+    process.stdin.setEncoding('utf8');
+    const handler = (key: string) => {
+      process.stdin.setRawMode(false);
+      process.stdin.pause();
+      process.stdin.removeListener('data', handler);
+      const answer = key.toLowerCase();
+      process.stdout.write(answer + '\n');
+      resolve(answer === 'y');
+    };
+    process.stdin.once('data', handler);
+  });
+}
+
+async function createLinearIssues(
+  tasks: DocTask[],
+  client: LinearIntegrationClient,
+  teamId: string,
+): Promise<DocTask[]> {
+  const result = [...tasks];
+  for (let i = 0; i < result.length; i++) {
+    const task = result[i];
+    if (task.status !== 'accepted') continue;
+
+    const yes = await promptYesNo(
+      `  ${BOLD}Create Linear issue for:${RESET} "${task.title}" (y/n) > `,
+    );
+    if (!yes) continue;
+
+    try {
+      const { identifier, url } = await client.createIssue({
+        title: task.title,
+        description: buildIssueBody(task),
+        teamId,
+        priority: task.severity === 'high' ? 2 : task.severity === 'medium' ? 3 : 4,
+      });
+      result[i] = { ...task, linearIssueUrl: url, linearIssueIdentifier: identifier };
+      console.log(`  ✓ Created ${identifier}: ${url}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`  ✗ Failed to create issue: ${message}`);
+    }
+  }
+  return result;
+}
+
 export async function docsCommand(options: DocsOptions): Promise<void> {
   const config = loadConfig();
   if (options.since) config.timeWindow = options.since;
@@ -181,6 +254,23 @@ export async function docsCommand(options: DocsOptions): Promise<void> {
   if (accepted === 0) {
     console.log('No tasks accepted — nothing to export.');
     return;
+  }
+
+  if (options.createIssues) {
+    const linearKey = config.integrations?.linear?.apiKey;
+    const teamId = config.integrations?.linear?.teamId;
+
+    if (!linearKey) {
+      console.warn('\nWarning: --create-issues requires LINEAR_API_KEY. Set it and try again.');
+      console.warn('  export LINEAR_API_KEY=<key>');
+    } else if (!teamId) {
+      console.warn('\nWarning: --create-issues requires a Linear team ID. Configure it with:');
+      console.warn('  daily-summary config set integrations.linear.teamId <team-id>');
+    } else {
+      console.log('\nCreating Linear issues for accepted tasks...');
+      const linearClient = new LinearIntegrationClient(linearKey);
+      tasks = await createLinearIssues(tasks, linearClient, teamId);
+    }
   }
 
   const paths = exportDocTasks(tasks, repoName, date, config.branch, config.timeWindow, format);

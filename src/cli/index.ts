@@ -79,6 +79,7 @@ program
   .option('--no-review', 'skip interactive review and accept all detected tasks')
   .option('--format <fmt>', 'export format: markdown, json, both', 'markdown')
   .option('--no-llm', 'use template-based task descriptions instead of LLM')
+  .option('--create-issues', 'prompt to create a Linear issue for each accepted task (requires LINEAR_API_KEY and team ID)')
   .action(async (options) => {
     await docsCommand({
       since: options.since,
@@ -86,6 +87,7 @@ program
       review: options.review !== false,
       format: options.format,
       llm: options.llm !== false,
+      createIssues: options.createIssues === true,
     });
   });
 

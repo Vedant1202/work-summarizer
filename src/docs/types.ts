@@ -35,4 +35,6 @@ export interface DocTask {
   actionItems: string[];
   suggestedDocFiles: string[];
   status: DocTaskStatus;
+  linearIssueUrl?: string;
+  linearIssueIdentifier?: string;
 }
