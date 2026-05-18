@@ -64,7 +64,7 @@ export default function Schedule() {
               {status.scheduled ? `Scheduled at ${status.time}` : 'Not scheduled'}
             </strong>
             {status.scheduled && !status.loaded && (
-              <span style={{ color: '#b7791f', marginLeft: 8 }}>(plist exists but not loaded — run launchctl load)</span>
+              <span style={{ color: '#2563eb', marginLeft: 8 }}>(plist exists but not loaded — run launchctl load)</span>
             )}
             {status.scheduled && status.loaded && (
               <span style={{ color: '#276749', marginLeft: 8 }}>(active)</span>
@@ -110,7 +110,7 @@ const infoBox: React.CSSProperties = { background: '#fff', border: '1px solid #e
 function btn(disabled: boolean): React.CSSProperties {
   return {
     padding: '8px 16px',
-    background: disabled ? '#ccc' : '#111',
+    background: disabled ? '#cbd5e1' : '#2563eb',
     color: '#fff',
     border: 'none',
     borderRadius: 6,

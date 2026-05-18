@@ -36,7 +36,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <div style={{ display: 'flex', minHeight: '100vh' }}>
-        <nav style={{ width: 200, background: '#111', color: '#fff', padding: '24px 12px', flexShrink: 0 }}>
+        <nav style={{ width: 200, background: '#0f172a', color: '#fff', padding: '24px 12px', flexShrink: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#93c5fd', letterSpacing: '0.08em', marginBottom: 12, paddingLeft: 12 }}>
             DAILY SUMMARY
           </div>
@@ -52,8 +52,8 @@ export default function App() {
                 marginBottom: 2,
                 borderRadius: 6,
                 textDecoration: 'none',
-                color: isActive ? '#fff' : '#aaa',
-                background: isActive ? '#2a2a2a' : 'transparent',
+                color: isActive ? '#fff' : '#94a3b8',
+                background: isActive ? '#2563eb' : 'transparent',
                 fontSize: 14,
               })}
             >
@@ -61,7 +61,7 @@ export default function App() {
             </NavLink>
           ))}
         </nav>
-        <main style={{ flex: 1, padding: 40, overflowY: 'auto' }}>
+        <main style={{ flex: 1, padding: 40, overflowY: 'auto', background: '#f8fafc' }}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/schedule" element={<Schedule />} />

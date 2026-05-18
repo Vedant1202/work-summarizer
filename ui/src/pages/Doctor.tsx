@@ -54,7 +54,7 @@ const heading: React.CSSProperties = { marginTop: 0, marginBottom: 8, fontSize: 
 function btn(disabled: boolean): React.CSSProperties {
   return {
     padding: '10px 22px',
-    background: disabled ? '#ccc' : '#111',
+    background: disabled ? '#cbd5e1' : '#2563eb',
     color: '#fff',
     border: 'none',
     borderRadius: 6,

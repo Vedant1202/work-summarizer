@@ -96,7 +96,7 @@ export default function Dashboard() {
         </button>
         <button
           onClick={() => setShowOptions((v) => !v)}
-          style={{ background: 'none', border: 'none', color: '#555', fontSize: 13, cursor: 'pointer', padding: 0 }}
+          style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: 13, cursor: 'pointer', padding: 0 }}
         >
           {showOptions ? 'Hide options ▲' : 'Options ▼'}
         </button>
@@ -108,7 +108,7 @@ export default function Dashboard() {
       </div>
 
       {showOptions && (
-        <div style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: 8, padding: 20, maxWidth: 600, marginBottom: 24 }}>
+        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 20, maxWidth: 600, marginBottom: 24 }}>
           <div style={{ fontSize: 12, color: '#888', marginBottom: 16, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Run Options — pre-filled from your config
           </div>
@@ -164,7 +164,7 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: 8, padding: 20 }}>
+    <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 20 }}>
       <div style={{ fontSize: 11, color: '#888', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
         {title}
       </div>
@@ -179,7 +179,7 @@ const inputStyle: React.CSSProperties = { width: '100%', padding: '7px 10px', bo
 function btn(disabled: boolean): React.CSSProperties {
   return {
     padding: '10px 22px',
-    background: disabled ? '#ccc' : '#111',
+    background: disabled ? '#cbd5e1' : '#2563eb',
     color: '#fff',
     border: 'none',
     borderRadius: 6,

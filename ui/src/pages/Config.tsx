@@ -88,7 +88,7 @@ export default function Config() {
                 disabled={saving === key || (isApiKey === true && !values[key]?.trim())}
                 style={{
                   padding: '7px 14px',
-                  background: saved === key ? '#276749' : (saving === key || (isApiKey === true && !values[key]?.trim())) ? '#ccc' : '#111',
+                  background: saved === key ? '#16a34a' : (saving === key || (isApiKey === true && !values[key]?.trim())) ? '#cbd5e1' : '#2563eb',
                   color: '#fff',
                   border: 'none',
                   borderRadius: 4,

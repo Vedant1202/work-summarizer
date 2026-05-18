@@ -60,7 +60,7 @@ function TriggerSection({ onTriggered }: { onTriggered: (id: string) => void }) 
       {result && (
         <div style={successBox}>
           <div><strong>Triggered.</strong> statusId: <code>{result.statusId}</code></div>
-          {result.previewUrl && <div style={{ marginTop: 4 }}>Preview: <a href={result.previewUrl} target="_blank" rel="noreferrer" style={{ color: '#276749' }}>{result.previewUrl}</a></div>}
+          {result.previewUrl && <div style={{ marginTop: 4 }}>Preview: <a href={result.previewUrl} target="_blank" rel="noreferrer" style={{ color: '#2563eb' }}>{result.previewUrl}</a></div>}
           <div style={{ marginTop: 4, fontSize: 12, color: '#555' }}>Running in background — check status below or refresh history.</div>
         </div>
       )}
@@ -110,7 +110,7 @@ function HistorySection({ onSelectStatusId }: { onSelectStatusId: (id: string) =
             </thead>
             <tbody>
               {records.map((r) => {
-                const statusColor = r.finalStatus === 'success' ? '#22543d' : r.finalStatus === 'failure' ? '#c53030' : '#b7791f';
+                const statusColor = r.finalStatus === 'success' ? '#22543d' : r.finalStatus === 'failure' ? '#c53030' : '#2563eb';
                 const location = r.previewUrl ?? r.subdomain ?? '—';
                 return (
                   <tr key={r.statusId} style={{ borderBottom: '1px solid #f5f5f5' }}>
@@ -118,7 +118,7 @@ function HistorySection({ onSelectStatusId }: { onSelectStatusId: (id: string) =
                       <button
                         onClick={() => onSelectStatusId(r.statusId)}
                         title="Click to check status"
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'ui-monospace, monospace', fontSize: 12, color: '#555', textDecoration: 'underline dotted' }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'ui-monospace, monospace', fontSize: 12, color: '#2563eb', textDecoration: 'underline dotted' }}
                       >
                         {r.statusId.slice(0, 12)}…
                       </button>
@@ -129,7 +129,7 @@ function HistorySection({ onSelectStatusId }: { onSelectStatusId: (id: string) =
                     <td style={{ ...td, color: statusColor, fontWeight: 600 }}>{r.finalStatus}</td>
                     <td style={td}>
                       {location !== '—'
-                        ? <a href={location.startsWith('http') ? location : `https://${location}`} target="_blank" rel="noreferrer" style={{ color: '#276749' }}>{location}</a>
+                        ? <a href={location.startsWith('http') ? location : `https://${location}`} target="_blank" rel="noreferrer" style={{ color: '#2563eb' }}>{location}</a>
                         : '—'}
                     </td>
                   </tr>
@@ -166,7 +166,7 @@ function StatusSection({ statusId, setStatusId }: { statusId: string; setStatusI
   };
 
   const statusColor = result
-    ? result.status === 'success' ? '#22543d' : result.status === 'failure' ? '#c53030' : '#b7791f'
+    ? result.status === 'success' ? '#22543d' : result.status === 'failure' ? '#c53030' : '#2563eb'
     : '#333';
 
   return (
@@ -255,7 +255,7 @@ function SummarySection() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: 8, padding: 24, marginBottom: 20 }}>
+    <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 24, marginBottom: 20 }}>
       <div style={{ fontSize: 13, fontWeight: 700, color: '#333', marginBottom: 16, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
         {title}
       </div>
@@ -270,9 +270,9 @@ function ToggleButton({ active, onClick, children }: { active: boolean; onClick:
       onClick={onClick}
       style={{
         padding: '6px 16px',
-        background: active ? '#111' : '#f5f5f5',
-        color: active ? '#fff' : '#555',
-        border: '1px solid ' + (active ? '#111' : '#e5e5e5'),
+        background: active ? '#2563eb' : '#f1f5f9',
+        color: active ? '#fff' : '#64748b',
+        border: '1px solid ' + (active ? '#2563eb' : '#e2e8f0'),
         borderRadius: 6,
         cursor: 'pointer',
         fontSize: 13,
@@ -302,7 +302,7 @@ const errorBox: React.CSSProperties = { background: '#fff5f5', border: '1px soli
 function btn(disabled: boolean): React.CSSProperties {
   return {
     padding: '8px 16px',
-    background: disabled ? '#ccc' : '#111',
+    background: disabled ? '#cbd5e1' : '#2563eb',
     color: '#fff',
     border: 'none',
     borderRadius: 6,
