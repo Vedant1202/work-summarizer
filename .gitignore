@@ -8,4 +8,5 @@ node_modules/
 dist/
 .env
 *.daily-summary.json
-website
+website/build/
+website/.docusaurus/
