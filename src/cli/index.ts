@@ -9,6 +9,7 @@ import { historyCommand } from './commands/history';
 import { scheduleCommand } from './commands/schedule';
 import { docsCommand } from './commands/docs';
 import { loadConfig } from '../config/loader';
+import { doctorCommand } from './commands/doctor';
 import { exportDocTasks, pushToDocsRepo } from '../docs/exporter';
 
 const program = new Command();
@@ -182,6 +183,11 @@ docsCmd
       process.exit(1);
     }
   });
+
+program
+  .command('doctor')
+  .description('Validate config and test API connectivity')
+  .action(async () => { await doctorCommand(); });
 
 program
   .command('schedule')
