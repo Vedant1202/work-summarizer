@@ -2,11 +2,11 @@
 
 [![npm version](https://img.shields.io/npm/v/daily-commit-summarizer.svg)](https://www.npmjs.com/package/daily-commit-summarizer)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Docs](https://img.shields.io/badge/docs-online-6366f1)](https://vedantnandoskar.github.io/daily-commit-summarizer/)
+[![Docs](https://img.shields.io/badge/docs-online-6366f1)](https://Vedant1202.github.io/daily-work-summarizer/)
 
 `daily-commit-summarizer` is a TypeScript CLI that turns local Git history into polished daily stand-up summaries. Point it at any repo, choose a time window, and get a structured, AI-generated report — categorised by feature, fix, refactor, test, chore, and more.
 
-**[Full documentation →](https://vedantnandoskar.github.io/daily-commit-summarizer/)**
+**[Full documentation →](https://Vedant1202.github.io/daily-work-summarizer/)**
 
 ## What It Does
 
@@ -92,7 +92,7 @@ flowchart TD
 
 The full reference — all commands, flags, configuration options, integration guides, and development notes — lives at:
 
-**https://vedantnandoskar.github.io/daily-commit-summarizer/**
+**https://Vedant1202.github.io/daily-work-summarizer/**
 
 ## License
 

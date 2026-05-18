@@ -3,15 +3,15 @@ import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
-  title: 'daily-commit-summarizer',
+  title: 'daily-work-summarizer',
   tagline: 'Turn git history into daily stand-up summaries with AI',
   favicon: 'img/logo.svg',
 
-  url: 'https://vedantnandoskar.github.io',
-  baseUrl: '/daily-commit-summarizer/',
+  url: 'https://Vedant1202.github.io',
+  baseUrl: '/daily-work-summarizer/',
 
-  organizationName: 'vedantnandoskar',
-  projectName: 'daily-commit-summarizer',
+  organizationName: 'Vedant1202',
+  projectName: 'daily-work-summarizer',
   trailingSlash: false,
 
   onBrokenLinks: 'throw',
@@ -34,7 +34,7 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           editUrl:
-            'https://github.com/vedantnandoskar/daily-commit-summarizer/edit/main/website/',
+            'https://github.com/Vedant1202/daily-work-summarizer/edit/main/website/',
         },
         blog: false,
         theme: {
@@ -59,12 +59,12 @@ const config: Config = {
           label: 'Docs',
         },
         {
-          href: 'https://github.com/vedantnandoskar/daily-commit-summarizer',
+          href: 'https://github.com/Vedant1202/daily-work-summarizer',
           label: 'GitHub',
           position: 'right',
         },
         {
-          href: 'https://www.npmjs.com/package/daily-commit-summarizer',
+          href: 'https://www.npmjs.com/package/daily-work-summarizer',
           label: 'npm',
           position: 'right',
         },
@@ -94,15 +94,15 @@ const config: Config = {
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/vedantnandoskar/daily-commit-summarizer',
+              href: 'https://github.com/Vedant1202/daily-work-summarizer',
             },
             {
               label: 'npm',
-              href: 'https://www.npmjs.com/package/daily-commit-summarizer',
+              href: 'https://www.npmjs.com/package/daily-work-summarizer',
             },
             {
               label: 'Report an issue',
-              href: 'https://github.com/vedantnandoskar/daily-commit-summarizer/issues',
+              href: 'https://github.com/Vedant1202/daily-work-summarizer/issues',
             },
           ],
         },
