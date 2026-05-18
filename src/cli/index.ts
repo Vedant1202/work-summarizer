@@ -12,6 +12,7 @@ import { loadConfig } from '../config/loader';
 import { doctorCommand } from './commands/doctor';
 import { exportDocTasks, pushToDocsRepo } from '../docs/exporter';
 import { mintlifyCommand } from './commands/mintlify';
+import { uiCommand } from './commands/ui';
 
 const program = new Command();
 
@@ -204,6 +205,11 @@ program
   .action((options) => {
     scheduleCommand({ time: options.time, remove: options.remove });
   });
+
+program
+  .command('ui')
+  .description('Start the local web UI on port 7331')
+  .action(async () => { await uiCommand(); });
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   const message = err instanceof Error ? err.message : String(err);
