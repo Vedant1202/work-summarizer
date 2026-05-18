@@ -2,8 +2,10 @@ import { execSync } from 'child_process';
 import { Command } from 'commander';
 import { loadConfig } from '../../config/loader';
 import { MintlifyDeployClient } from '../../integrations/mintlify/deploy';
-import { appendDeployRecord, listDeployRecords } from '../../integrations/mintlify/cache';
-import { MintlifyStatusResponse } from '../../integrations/mintlify/types';
+import { appendDeployRecord, listDeployRecords, filterRecordsSince } from '../../integrations/mintlify/cache';
+import { MintlifyDeployRecord, MintlifyStatusResponse } from '../../integrations/mintlify/types';
+import { GeminiProvider } from '../../llm/gemini';
+import { buildDeploymentSummaryPrompt } from '../../llm/prompts';
 import os from 'os';
 
 const GREEN = '\x1b[32m';
@@ -261,6 +263,143 @@ export function mintlifyCommand(): Command {
           ].join('  ')
         );
       }
+    });
+
+  // ── summary ──────────────────────────────────────────────────────────────────
+  cmd
+    .command('summary')
+    .description('Summarize Mintlify deployments over a time window using LLM')
+    .option('--since <duration>', 'time window: 24h, 7d, 1w, etc.', '24h')
+    .option('--raw', 'print raw file change table without LLM summary')
+    .option('--project-id <id>', 'Mintlify project ID (used for back-filling missing data)')
+    .action(async (options) => {
+      const config = loadConfig();
+      const since: string = options.since;
+
+      // Validate LLM credentials unless --raw
+      if (!options.raw) {
+        if (!config.llm.apiKey) {
+          console.error('Error: GEMINI_API_KEY is not set. Use --raw to skip LLM, or run: daily-summary config init');
+          process.exit(1);
+        }
+        if (!config.llm.model) {
+          console.error('Error: GEMINI_MODEL is not set. Use --raw to skip LLM, or run: daily-summary config init');
+          process.exit(1);
+        }
+      }
+
+      const all = listDeployRecords();
+      const records = filterRecordsSince(all, since);
+
+      if (records.length === 0) {
+        console.log(`No Mintlify deployments found in the last ${since}.`);
+        console.log('Run: daily-summary mintlify trigger');
+        return;
+      }
+
+      const previews = records.filter((r) => r.mode === 'preview').length;
+      const productions = records.filter((r) => r.mode === 'production').length;
+      console.log(`\n${BOLD}Mintlify Docs Summary${RESET} — last ${since}`);
+      console.log(`${records.length} deployment(s): ${previews} preview · ${productions} production\n`);
+
+      // Header table
+      const rows = records.map((r) => ({
+        date: r.triggeredAt.replace('T', ' ').slice(0, 16),
+        mode: r.mode,
+        branch: r.branch ?? '—',
+        status: r.finalStatus,
+      }));
+      const colWidths = {
+        date: Math.max(16, ...rows.map((r) => r.date.length)),
+        mode: Math.max(4, ...rows.map((r) => r.mode.length)),
+        branch: Math.max(6, ...rows.map((r) => r.branch.length)),
+        status: Math.max(7, ...rows.map((r) => r.status.length)),
+      };
+      const header = [
+        'Date'.padEnd(colWidths.date),
+        'Mode'.padEnd(colWidths.mode),
+        'Branch'.padEnd(colWidths.branch),
+        'Status',
+      ].join('  ');
+      console.log(header);
+      console.log('-'.repeat(header.length));
+      for (const row of rows) {
+        const statusColour = row.status === 'success' ? GREEN : row.status === 'failure' ? RED : YELLOW;
+        console.log([
+          row.date.padEnd(colWidths.date),
+          row.mode.padEnd(colWidths.mode),
+          row.branch.padEnd(colWidths.branch),
+          `${statusColour}${row.status}${RESET}`,
+        ].join('  '));
+      }
+
+      // Back-fill any records missing filesChanged via the status API
+      const projectId = options.projectId ?? config.integrations?.mintlify?.projectId;
+      const apiKey = config.integrations?.mintlify?.apiKey;
+      const needsBackfill = records.filter((r) => !r.filesChanged);
+      if (needsBackfill.length > 0 && apiKey && projectId) {
+        const client = new MintlifyDeployClient(apiKey, projectId);
+        for (const record of needsBackfill) {
+          try {
+            const status = await client.getStatus(record.statusId);
+            if (status.commit?.filesChanged) {
+              (record as MintlifyDeployRecord).filesChanged = status.commit.filesChanged;
+              (record as MintlifyDeployRecord).commitSha = status.commit.sha;
+              (record as MintlifyDeployRecord).commitMessage = status.commit.message;
+            }
+          } catch {
+            // best-effort; skip if unavailable
+          }
+        }
+      }
+
+      if (options.raw) {
+        // Raw output — print per-deployment file change tables
+        console.log();
+        records.forEach((r, i) => {
+          const date = r.triggeredAt.replace('T', ' ').slice(0, 16);
+          const sha = r.commitSha ? r.commitSha.slice(0, 7) : 'unknown';
+          console.log(`${BOLD}Deployment ${i + 1}${RESET} — ${date} · ${r.mode} · ${r.branch ?? 'unknown'}`);
+          if (r.commitMessage) {
+            console.log(`  ${DIM}Commit: ${sha} "${r.commitMessage}"${RESET}`);
+          }
+          if (r.filesChanged) {
+            const { added, modified, removed } = r.filesChanged;
+            if (added.length > 0) console.log(`  ${GREEN}+${RESET} added:    ${added.join(', ')}`);
+            if (modified.length > 0) console.log(`  ${YELLOW}~${RESET} modified: ${modified.join(', ')}`);
+            if (removed.length > 0) console.log(`  ${RED}-${RESET} removed:  ${removed.join(', ')}`);
+            if (added.length === 0 && modified.length === 0 && removed.length === 0) {
+              console.log(`  ${DIM}(no file changes recorded)${RESET}`);
+            }
+          } else {
+            console.log(`  ${DIM}(no file data — trigger with polling to capture changes)${RESET}`);
+          }
+          console.log();
+        });
+        return;
+      }
+
+      // LLM summary
+      const hasAnyFiles = records.some((r) => r.filesChanged);
+      if (!hasAnyFiles) {
+        console.log(`\n${DIM}No file change data available. Run 'mintlify trigger' (without --fire-and-forget) to capture file changes.${RESET}\n`);
+        return;
+      }
+
+      console.log(`\n${BOLD}Summary${RESET}`);
+      console.log('-'.repeat(40));
+      try {
+        const provider = new GeminiProvider(config.llm.apiKey!, config.llm.model!);
+        const prompt = buildDeploymentSummaryPrompt(records);
+        const summary = await provider.rawPrompt(prompt);
+        console.log(summary);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`\nLLM error: ${message}`);
+        console.error('Use --raw to print file changes without LLM.');
+        process.exit(1);
+      }
+      console.log();
     });
 
   return cmd;
