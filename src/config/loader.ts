@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { Config, ConfigScope } from './types';
+import { Config, ConfigScope, IntegrationsConfig } from './types';
 
 const GLOBAL_CONFIG_DIR = path.join(os.homedir(), '.daily-summary');
 const GLOBAL_CONFIG_FILE = path.join(GLOBAL_CONFIG_DIR, 'config.json');
@@ -28,12 +28,26 @@ function readJsonFile(filePath: string): Partial<Config> {
   }
 }
 
+function mergeIntegrations(
+  base?: IntegrationsConfig,
+  override?: IntegrationsConfig,
+): IntegrationsConfig | undefined {
+  if (!base && !override) return undefined;
+  return {
+    ...base,
+    ...override,
+    linear: { ...(base?.linear ?? {}), ...(override?.linear ?? {}) },
+    docsRepo: { ...(base?.docsRepo ?? {}), ...(override?.docsRepo ?? {}) },
+  };
+}
+
 function deepMerge(base: Config, override: Partial<Config>): Config {
   return {
     ...base,
     ...override,
     llm: { ...base.llm, ...(override.llm ?? {}) },
     output: { ...base.output, ...(override.output ?? {}) },
+    integrations: mergeIntegrations(base.integrations, override.integrations),
   };
 }
 
@@ -83,6 +97,13 @@ export function loadConfig(): Config {
     config.llm.model = envModel;
   }
 
+  const linearKey = process.env.LINEAR_API_KEY;
+  if (linearKey) {
+    if (!config.integrations) config.integrations = {};
+    if (!config.integrations.linear) config.integrations.linear = {};
+    config.integrations.linear.apiKey = linearKey;
+  }
+
   return config;
 }
 
@@ -130,6 +151,9 @@ export function maskConfig(config: Config): Config {
   const masked = JSON.parse(JSON.stringify(config)) as Config;
   if (masked.llm.apiKey) {
     masked.llm.apiKey = '***';
+  }
+  if (masked.integrations?.linear?.apiKey) {
+    masked.integrations.linear.apiKey = '***';
   }
   return masked;
 }

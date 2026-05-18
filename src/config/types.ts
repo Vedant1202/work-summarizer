@@ -21,6 +21,24 @@ export interface Config {
   focusAreas?: string[];
   llm: LLMConfig;
   output: OutputConfig;
+  integrations?: IntegrationsConfig;
+}
+
+export interface LinearIntegrationConfig {
+  apiKey?: string;
+  teamId?: string;
+  teamName?: string;
+}
+
+export interface DocsRepoConfig {
+  path?: string;
+  outputDir?: string;
+  autoCommit?: boolean;
+}
+
+export interface IntegrationsConfig {
+  linear?: LinearIntegrationConfig;
+  docsRepo?: DocsRepoConfig;
 }
 
 export type ConfigScope = 'local' | 'global';
