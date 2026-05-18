@@ -1,0 +1,5 @@
+.agents/
+.claude/
+agent-skills/
+install.sh
+claude-install.log
