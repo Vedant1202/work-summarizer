@@ -13,6 +13,7 @@ import { LinearIntegrationClient } from '../../integrations/linear/client';
 interface DocsOptions {
   since?: string;
   branch?: string;
+  repo?: string;
   review: boolean;
   format?: string;
   llm: boolean;
@@ -202,6 +203,7 @@ export async function docsCommand(options: DocsOptions): Promise<void> {
   const config = loadConfig();
   if (options.since) config.timeWindow = options.since;
   if (options.branch) config.branch = options.branch;
+  if (options.repo) config.repoPath = options.repo;
 
   const format = (options.format ?? 'markdown') as DocExportFormat;
   const repoName = path.basename(path.resolve(config.repoPath));

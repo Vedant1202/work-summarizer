@@ -15,6 +15,7 @@ import { NormalizedCommit } from '../../git/normalizer';
 interface RunOptions {
   since?: string;
   branch?: string;
+  repo?: string;
   length?: string;
   format?: string;
   edit: boolean;
@@ -119,6 +120,7 @@ export async function runCommand(options: RunOptions): Promise<void> {
   // Apply CLI overrides
   if (options.since) config.timeWindow = options.since;
   if (options.branch) config.branch = options.branch;
+  if (options.repo) config.repoPath = options.repo;
   if (options.length) config.llm.summaryLength = options.length as SummaryLength;
 
   const format = (options.format ?? config.output.format ?? 'markdown') as OutputFormat;

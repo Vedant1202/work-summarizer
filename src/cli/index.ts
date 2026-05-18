@@ -26,12 +26,14 @@ program
   .option('--branch <name>', 'git branch to scan (defaults to config)')
   .option('--length <size>', 'summary length: short, medium, long', 'medium')
   .option('--format <fmt>', 'output format: markdown, html, both', 'markdown')
+  .option('--repo <path>', 'path to the git repo to scan (default: current directory)')
   .option('--no-edit', 'skip editor review and export directly')
   .option('--with-linear', 'enrich report with Linear issue data (requires LINEAR_API_KEY)')
   .action(async (options) => {
     await runCommand({
       since: options.since,
       branch: options.branch,
+      repo: options.repo,
       length: options.length,
       format: options.format,
       edit: options.edit !== false,
@@ -87,6 +89,7 @@ const docsCmd = program
   .description('Detect and review documentation tasks from recent commits')
   .option('--since <duration>', 'time window, e.g. 24h, 2d, 1w', '24h')
   .option('--branch <name>', 'git branch to analyze')
+  .option('--repo <path>', 'path to the git repo to analyze (default: current directory)')
   .option('--no-review', 'skip interactive review and accept all detected tasks')
   .option('--format <fmt>', 'export format: markdown, json, both', 'markdown')
   .option('--no-llm', 'use template-based task descriptions instead of LLM')
@@ -95,6 +98,7 @@ const docsCmd = program
     await docsCommand({
       since: options.since,
       branch: options.branch,
+      repo: options.repo,
       review: options.review !== false,
       format: options.format,
       llm: options.llm !== false,
