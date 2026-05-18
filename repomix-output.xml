@@ -50,6 +50,7 @@ src/
       doctor.ts
       export.ts
       history.ts
+      mintlify.ts
       run.ts
       schedule.ts
     index.ts
@@ -70,6 +71,10 @@ src/
   integrations/
     linear/
       client.ts
+    mintlify/
+      cache.ts
+      deploy.ts
+      types.ts
     extractor.test.ts
     extractor.ts
     types.ts
@@ -96,120 +101,6 @@ This section contains the contents of the repository's files.
 <file path="src/bin/daily-summary.ts">
 #!/usr/bin/env node
 import '../cli/index';
-</file>
-
-<file path="src/cli/commands/doctor.ts">
-import { loadConfig } from '../../config/loader';
-import { GeminiProvider } from '../../llm/gemini';
-import { LinearIntegrationClient } from '../../integrations/linear/client';
-
-const GREEN = '\x1b[32m';
-const RED = '\x1b[31m';
-const DIM = '\x1b[2m';
-const RESET = '\x1b[0m';
-const BOLD = '\x1b[1m';
-
-function pass(label: string, detail: string): void {
-  console.log(`  ${GREEN}✓${RESET} ${label.padEnd(20)} ${DIM}${detail}${RESET}`);
-}
-
-function fail(label: string, detail: string): void {
-  console.log(`  ${RED}✗${RESET} ${label.padEnd(20)} ${DIM}${detail}${RESET}`);
-}
-
-function skip(label: string, detail: string): void {
-  console.log(`  ${DIM}-${RESET} ${label.padEnd(20)} ${DIM}${detail}${RESET}`);
-}
-
-export async function doctorCommand(): Promise<void> {
-  const config = loadConfig();
-  let allRequired = true;
-
-  console.log(`\n${BOLD}Checking configuration...${RESET}`);
-
-  const geminiKey = config.llm.apiKey;
-  if (geminiKey) {
-    pass('GEMINI_API_KEY', 'set');
-  } else {
-    fail('GEMINI_API_KEY', 'not set — run: daily-summary config init');
-    allRequired = false;
-  }
-
-  const geminiModel = config.llm.model;
-  if (geminiModel) {
-    pass('GEMINI_MODEL', geminiModel);
-  } else {
-    fail('GEMINI_MODEL', 'not set — run: daily-summary config init');
-    allRequired = false;
-  }
-
-  const linearKey = config.integrations?.linear?.apiKey;
-  if (linearKey) {
-    pass('LINEAR_API_KEY', 'set');
-  } else {
-    skip('LINEAR_API_KEY', 'not set (optional — needed for --with-linear)');
-  }
-
-  const teamId = config.integrations?.linear?.teamId;
-  if (teamId) {
-    pass('linear.teamId', teamId);
-  } else {
-    skip('linear.teamId', 'not set (optional — needed for --create-issues)');
-  }
-
-  console.log(`\n${BOLD}Testing Gemini connection...${RESET}`);
-  if (geminiKey && geminiModel) {
-    try {
-      const provider = new GeminiProvider(geminiKey, geminiModel);
-      const response = await provider.rawPrompt('Reply with just the word OK');
-      if (response.trim()) {
-        pass('Gemini API', `reachable (${geminiModel})`);
-      } else {
-        fail('Gemini API', 'empty response');
-        allRequired = false;
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      fail('Gemini API', message);
-      allRequired = false;
-    }
-  } else {
-    skip('Gemini API', 'skipped (missing key or model)');
-  }
-
-  console.log(`\n${BOLD}Testing Linear connection...${RESET}`);
-  if (linearKey) {
-    try {
-      const client = new LinearIntegrationClient(linearKey);
-      const teams = await client.listTeams();
-      if (teams.length > 0) {
-        pass('Linear API', `reachable — ${teams.length} team(s): ${teams.map((t) => t.key).join(', ')}`);
-        if (!teamId) {
-          console.log(`\n  ${DIM}Tip: save your team ID with:${RESET}`);
-          for (const t of teams) {
-            console.log(`    ${DIM}daily-summary config set integrations.linear.teamId ${t.id}  # ${t.name}${RESET}`);
-          }
-        }
-      } else {
-        pass('Linear API', 'reachable (no teams found)');
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      fail('Linear API', message);
-    }
-  } else {
-    skip('Linear API', 'skipped (no key)');
-  }
-
-  console.log();
-  if (allRequired) {
-    console.log(`${GREEN}${BOLD}Setup looks good.${RESET} Run: daily-summary run --since 24h --no-edit`);
-  } else {
-    console.log(`${RED}${BOLD}Setup incomplete.${RESET} Run: daily-summary config init`);
-    process.exit(1);
-  }
-  console.log();
-}
 </file>
 
 <file path="src/cli/commands/export.ts">
@@ -1130,6 +1021,223 @@ export class LinearIntegrationClient {
 }
 </file>
 
+<file path="src/integrations/mintlify/deploy.ts">
+import {
+  MintlifyDeployMode,
+  MintlifyDeployRecord,
+  MintlifyFilesChanged,
+  MintlifyPreviewTriggerResponse,
+  MintlifyStatusResponse,
+  MintlifyTriggerResponse,
+} from './types';
+
+const BASE_URL = 'https://api.mintlify.com/v1';
+export const DEFAULT_POLL_INTERVAL_MS = 4_000;
+export const DEFAULT_TIMEOUT_MS = 300_000;
+
+async function mintlifyFetch<T>(
+  url: string,
+  apiKey: string,
+  options: RequestInit = {},
+): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        ...(options.headers ?? {}),
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`Mintlify API error: ${message}`);
+  }
+
+  if (!response.ok) {
+    let detail = response.statusText;
+    try {
+      const body = (await response.json()) as { error?: string; message?: string };
+      detail = body.error ?? body.message ?? detail;
+    } catch {
+      // ignore parse failure
+    }
+    throw new Error(`Mintlify API error ${response.status}: ${detail}`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+export class MintlifyDeployClient {
+  private readonly apiKey: string;
+  private readonly projectId: string;
+
+  constructor(apiKey: string, projectId: string) {
+    this.apiKey = apiKey;
+    this.projectId = projectId;
+  }
+
+  async triggerProduction(): Promise<MintlifyTriggerResponse> {
+    return mintlifyFetch<MintlifyTriggerResponse>(
+      `${BASE_URL}/project/update/${this.projectId}`,
+      this.apiKey,
+      { method: 'POST' },
+    );
+  }
+
+  async triggerPreview(branch: string): Promise<MintlifyPreviewTriggerResponse> {
+    return mintlifyFetch<MintlifyPreviewTriggerResponse>(
+      `${BASE_URL}/project/preview/${this.projectId}`,
+      this.apiKey,
+      { method: 'POST', body: JSON.stringify({ branch }) },
+    );
+  }
+
+  async getStatus(statusId: string): Promise<MintlifyStatusResponse> {
+    return mintlifyFetch<MintlifyStatusResponse>(
+      `${BASE_URL}/project/update-status/${statusId}`,
+      this.apiKey,
+    );
+  }
+
+  async triggerAndWait(
+    mode: MintlifyDeployMode,
+    options: {
+      branch?: string;
+      pollIntervalMs?: number;
+      timeoutMs?: number;
+      onTick?: (status: MintlifyStatusResponse) => void;
+    } = {},
+  ): Promise<{ statusId: string; previewUrl?: string; finalStatus: MintlifyStatusResponse; filesChanged?: MintlifyFilesChanged }> {
+    const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
+    const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+
+    let statusId: string;
+    let previewUrl: string | undefined;
+
+    if (mode === 'preview') {
+      if (!options.branch) throw new Error('branch is required for preview deployments');
+      const result = await this.triggerPreview(options.branch);
+      statusId = result.statusId;
+      previewUrl = result.previewUrl;
+    } else {
+      const result = await this.triggerProduction();
+      statusId = result.statusId;
+    }
+
+    const start = Date.now();
+    let finalStatus: MintlifyStatusResponse | undefined;
+
+    while (true) {
+      if (Date.now() - start > timeoutMs) {
+        throw new Error(`Mintlify deploy timed out after ${timeoutMs / 1000}s`);
+      }
+
+      const status = await this.getStatus(statusId);
+      options.onTick?.(status);
+
+      if (status.status === 'success' || status.status === 'failure') {
+        finalStatus = status;
+        break;
+      }
+
+      await new Promise<void>((resolve) => setTimeout(resolve, pollIntervalMs));
+    }
+
+    return {
+      statusId,
+      previewUrl,
+      finalStatus,
+      filesChanged: finalStatus.commit?.filesChanged,
+    };
+  }
+
+  buildDeployRecord(
+    statusId: string,
+    mode: MintlifyDeployMode,
+    finalStatus: MintlifyStatusResponse,
+    opts: { branch?: string; previewUrl?: string },
+  ): MintlifyDeployRecord {
+    return {
+      statusId,
+      projectId: this.projectId,
+      triggeredAt: new Date().toISOString(),
+      mode,
+      branch: opts.branch,
+      previewUrl: opts.previewUrl,
+      finalStatus: finalStatus.status,
+      endedAt: finalStatus.endedAt,
+      subdomain: finalStatus.subdomain,
+      summary: finalStatus.summary,
+      filesChanged: finalStatus.commit?.filesChanged,
+      commitSha: finalStatus.commit?.sha,
+      commitMessage: finalStatus.commit?.message,
+    };
+  }
+}
+</file>
+
+<file path="src/integrations/mintlify/types.ts">
+export type MintlifyDeployStatus = 'queued' | 'in_progress' | 'success' | 'failure';
+export type MintlifyDeployMode = 'preview' | 'production';
+
+export interface MintlifyTriggerResponse {
+  statusId: string;
+}
+
+export interface MintlifyPreviewTriggerResponse {
+  statusId: string;
+  previewUrl: string;
+}
+
+export interface MintlifyFilesChanged {
+  added: string[];
+  modified: string[];
+  removed: string[];
+}
+
+export interface MintlifyStatusResponse {
+  _id: string;
+  projectId: string;
+  createdAt: string;
+  endedAt?: string;
+  status: MintlifyDeployStatus;
+  summary?: string;
+  logs: string[];
+  subdomain: string;
+  screenshot?: string;
+  commit?: {
+    sha: string;
+    ref: string;
+    message: string;
+    filesChanged: MintlifyFilesChanged;
+  };
+  author?: {
+    name: string;
+    avatarUrl: string;
+    githubUserId: string;
+  };
+  source?: string;
+}
+
+export interface MintlifyDeployRecord {
+  statusId: string;
+  projectId: string;
+  triggeredAt: string;
+  mode: MintlifyDeployMode;
+  branch?: string;
+  previewUrl?: string;
+  finalStatus: MintlifyDeployStatus;
+  endedAt?: string;
+  subdomain?: string;
+  summary?: string;
+  filesChanged?: MintlifyFilesChanged;
+  commitSha?: string;
+  commitMessage?: string;
+}
+</file>
+
 <file path="src/integrations/extractor.test.ts">
 import { describe, it, expect } from 'vitest';
 import { extractIssueRefs, extractIssueRefsFromBranch } from './extractor';
@@ -1475,6 +1583,134 @@ export async function configInitCommand(): Promise<void> {
     rl.close();
     throw err;
   }
+}
+</file>
+
+<file path="src/cli/commands/doctor.ts">
+import { loadConfig } from '../../config/loader';
+import { GeminiProvider } from '../../llm/gemini';
+import { LinearIntegrationClient } from '../../integrations/linear/client';
+
+const GREEN = '\x1b[32m';
+const RED = '\x1b[31m';
+const DIM = '\x1b[2m';
+const RESET = '\x1b[0m';
+const BOLD = '\x1b[1m';
+
+function pass(label: string, detail: string): void {
+  console.log(`  ${GREEN}✓${RESET} ${label.padEnd(20)} ${DIM}${detail}${RESET}`);
+}
+
+function fail(label: string, detail: string): void {
+  console.log(`  ${RED}✗${RESET} ${label.padEnd(20)} ${DIM}${detail}${RESET}`);
+}
+
+function skip(label: string, detail: string): void {
+  console.log(`  ${DIM}-${RESET} ${label.padEnd(20)} ${DIM}${detail}${RESET}`);
+}
+
+export async function doctorCommand(): Promise<void> {
+  const config = loadConfig();
+  let allRequired = true;
+
+  console.log(`\n${BOLD}Checking configuration...${RESET}`);
+
+  const geminiKey = config.llm.apiKey;
+  if (geminiKey) {
+    pass('GEMINI_API_KEY', 'set');
+  } else {
+    fail('GEMINI_API_KEY', 'not set — run: daily-summary config init');
+    allRequired = false;
+  }
+
+  const geminiModel = config.llm.model;
+  if (geminiModel) {
+    pass('GEMINI_MODEL', geminiModel);
+  } else {
+    fail('GEMINI_MODEL', 'not set — run: daily-summary config init');
+    allRequired = false;
+  }
+
+  const linearKey = config.integrations?.linear?.apiKey;
+  if (linearKey) {
+    pass('LINEAR_API_KEY', 'set');
+  } else {
+    skip('LINEAR_API_KEY', 'not set (optional — needed for --with-linear)');
+  }
+
+  const teamId = config.integrations?.linear?.teamId;
+  if (teamId) {
+    pass('linear.teamId', teamId);
+  } else {
+    skip('linear.teamId', 'not set (optional — needed for --create-issues)');
+  }
+
+  console.log(`\n${BOLD}Checking Mintlify...${RESET}`);
+  const mintlifyKey = config.integrations?.mintlify?.apiKey;
+  const mintlifyProjectId = config.integrations?.mintlify?.projectId;
+  if (mintlifyKey) {
+    pass('MINTLIFY_API_KEY', 'set');
+  } else {
+    skip('MINTLIFY_API_KEY', 'not set (optional — needed for mintlify trigger)');
+  }
+  if (mintlifyProjectId) {
+    pass('mintlify.projectId', mintlifyProjectId);
+  } else {
+    skip('mintlify.projectId', 'not set (optional — needed for mintlify trigger)');
+  }
+
+  console.log(`\n${BOLD}Testing Gemini connection...${RESET}`);
+  if (geminiKey && geminiModel) {
+    try {
+      const provider = new GeminiProvider(geminiKey, geminiModel);
+      const response = await provider.rawPrompt('Reply with just the word OK');
+      if (response.trim()) {
+        pass('Gemini API', `reachable (${geminiModel})`);
+      } else {
+        fail('Gemini API', 'empty response');
+        allRequired = false;
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      fail('Gemini API', message);
+      allRequired = false;
+    }
+  } else {
+    skip('Gemini API', 'skipped (missing key or model)');
+  }
+
+  console.log(`\n${BOLD}Testing Linear connection...${RESET}`);
+  if (linearKey) {
+    try {
+      const client = new LinearIntegrationClient(linearKey);
+      const teams = await client.listTeams();
+      if (teams.length > 0) {
+        pass('Linear API', `reachable — ${teams.length} team(s): ${teams.map((t) => t.key).join(', ')}`);
+        if (!teamId) {
+          console.log(`\n  ${DIM}Tip: save your team ID with:${RESET}`);
+          for (const t of teams) {
+            console.log(`    ${DIM}daily-summary config set integrations.linear.teamId ${t.id}  # ${t.name}${RESET}`);
+          }
+        }
+      } else {
+        pass('Linear API', 'reachable (no teams found)');
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      fail('Linear API', message);
+    }
+  } else {
+    skip('Linear API', 'skipped (no key)');
+  }
+
+  console.log();
+  if (allRequired) {
+    console.log(`${GREEN}${BOLD}Setup looks good.${RESET} Run: daily-summary run --since 24h --no-edit`);
+  } else {
+    console.log(`${RED}${BOLD}Setup incomplete.${RESET} Run: daily-summary config init`);
+    process.exit(1);
+  }
+  console.log();
 }
 </file>
 
@@ -1903,6 +2139,52 @@ export function normalizeDiff(commits: Commit[], config?: Pick<Config, 'excludeP
 }
 </file>
 
+<file path="src/integrations/mintlify/cache.ts">
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { MintlifyDeployRecord } from './types';
+
+const CACHE_PATH = path.join(os.homedir(), '.daily-summary', 'mintlify-deployments.json');
+
+interface DeployCache {
+  deployments: MintlifyDeployRecord[];
+}
+
+function readDeployCache(): DeployCache {
+  try {
+    return JSON.parse(fs.readFileSync(CACHE_PATH, 'utf8')) as DeployCache;
+  } catch {
+    return { deployments: [] };
+  }
+}
+
+export function appendDeployRecord(record: MintlifyDeployRecord): void {
+  const cache = readDeployCache();
+  cache.deployments.unshift(record);
+  fs.mkdirSync(path.dirname(CACHE_PATH), { recursive: true });
+  fs.writeFileSync(CACHE_PATH, JSON.stringify(cache, null, 2) + '\n', 'utf8');
+}
+
+export function listDeployRecords(limit?: number): MintlifyDeployRecord[] {
+  const { deployments } = readDeployCache();
+  return limit ? deployments.slice(0, limit) : deployments;
+}
+
+function sinceToDate(since: string): Date {
+  const match = since.match(/^(\d+)(m|h|d|w)$/);
+  if (!match) return new Date(since);
+  const amount = parseInt(match[1], 10);
+  const ms: Record<string, number> = { m: 60_000, h: 3_600_000, d: 86_400_000, w: 604_800_000 };
+  return new Date(Date.now() - amount * ms[match[2]]);
+}
+
+export function filterRecordsSince(records: MintlifyDeployRecord[], since: string): MintlifyDeployRecord[] {
+  const cutoff = sinceToDate(since);
+  return records.filter((r) => new Date(r.triggeredAt) >= cutoff);
+}
+</file>
+
 <file path="src/integrations/extractor.ts">
 import { IssueRef } from './types';
 
@@ -2023,113 +2305,6 @@ export class GeminiProvider {
     }
     return result.response.text().trim();
   }
-}
-</file>
-
-<file path="src/llm/prompts.ts">
-import { SummaryLength, CommitCategory } from '../config/types';
-import { NormalizedCommit } from '../git/normalizer';
-
-// Category display labels (order defines section order in output)
-const CATEGORY_LABELS: Record<CommitCategory, string> = {
-  feat: 'Features',
-  fix: 'Bug Fixes',
-  perf: 'Performance',
-  refactor: 'Refactors & Improvements',
-  test: 'Tests',
-  docs: 'Documentation',
-  chore: 'Chores & Maintenance',
-  other: 'Other Changes',
-};
-
-const CATEGORY_ORDER: CommitCategory[] = ['feat', 'fix', 'perf', 'refactor', 'test', 'docs', 'chore', 'other'];
-
-const LENGTH_INSTRUCTIONS: Record<SummaryLength, string> = {
-  short: `Write 3–5 bullet points covering only the most impactful changes (features and fixes first).
-- Each bullet: max 80 characters
-- One section maximum — no category headers
-- Format: "• [Past-tense action] [brief impact if clear]"`,
-
-  medium: `Write a grouped summary with section headers for each category that has commits.
-- 2–4 bullets per populated section
-- Each bullet: max 100 characters
-- Sections appear in this order (omit empty ones): Features → Bug Fixes → Performance → Refactors & Improvements → Tests → Documentation → Chores & Maintenance
-- Format each bullet: "- [Past-tense action] – [user/team impact, if discernible]"`,
-
-  long: `Write a detailed grouped summary.
-- Open with a 2-sentence "theme" paragraph summarizing the day's overall direction
-- Then provide section headers for each category that has commits
-- Up to 8 bullets per section; each bullet max 120 characters
-- Include file-level detail (e.g., "in auth/provider.ts") where it adds context
-- Sections in order: Features → Bug Fixes → Performance → Refactors & Improvements → Tests → Documentation → Chores & Maintenance
-- Format each bullet: "- [Past-tense action] – [impact or detail]"`,
-};
-
-const SYSTEM_RULES = `You are a senior engineering writer generating a professional daily stand-up summary from git commit data.
-
-VOICE & STYLE RULES (follow strictly):
-- Use past-tense imperative voice: "Added X", "Fixed Y", "Improved Z" — NOT "Adding X" or "We added X"
-- Be specific about what changed and why it matters; avoid vague language ("cleaned up code", "made improvements")
-- Do not invent performance metrics, numbers, or impact claims that are not present in the commit messages or diffs
-- Do not include commit SHAs, author names, or timestamps in the output
-- Omit trivial commits: whitespace-only changes, lock file bumps, minor version pins with no feature impact
-- If a commit message includes "BREAKING CHANGE" or "!", prefix that bullet with "⚠ BREAKING:"
-- If a commit message mentions a blocker, dependency wait, or TODO, prefix that bullet with "🔴 BLOCKED:"
-- Write for a technical audience (engineers and tech leads) — be precise but concise
-
-QUALITY BAR:
-- A reader should understand what shipped, what broke, and what improved in under 30 seconds
-- Each bullet should be independently meaningful — no vague fillers
-- Prioritize user-visible and system-visible impact over implementation details`;
-
-function formatCommitForPrompt(c: NormalizedCommit): string {
-  const stat = `+${c.diffStat.insertions}/-${c.diffStat.deletions}`;
-  const files = c.changedFiles.length > 0 ? ` → ${c.changedFiles.slice(0, 4).join(', ')}${c.changedFiles.length > 4 ? ', …' : ''}` : '';
-  const diff = c.diff ? `\n  diff:\n${c.diff.split('\n').slice(0, 20).map((l) => '  ' + l).join('\n')}` : '';
-  return `[${c.category}] ${c.message} (${stat})${files}${diff}`;
-}
-
-function groupCommitsByCategory(commits: NormalizedCommit[]): Map<CommitCategory, NormalizedCommit[]> {
-  const groups = new Map<CommitCategory, NormalizedCommit[]>();
-  for (const commit of commits) {
-    const existing = groups.get(commit.category) ?? [];
-    existing.push(commit);
-    groups.set(commit.category, existing);
-  }
-  return groups;
-}
-
-export function buildSummarizationPrompt(commits: NormalizedCommit[], length: SummaryLength): string {
-  const groups = groupCommitsByCategory(commits);
-
-  // Build the commit block in category order so the LLM receives pre-organized input
-  const orderedSections = CATEGORY_ORDER
-    .filter((cat) => groups.has(cat))
-    .map((cat) => {
-      const label = CATEGORY_LABELS[cat];
-      const items = groups.get(cat)!.map((c) => `  ${formatCommitForPrompt(c)}`).join('\n');
-      return `### ${label}\n${items}`;
-    })
-    .join('\n\n');
-
-  const commitBlock = orderedSections || commits.map((c) => formatCommitForPrompt(c)).join('\n');
-
-  return `${SYSTEM_RULES}
-
----
-
-OUTPUT FORMAT:
-${LENGTH_INSTRUCTIONS[length]}
-
----
-
-COMMITS (pre-classified by type):
-
-${commitBlock}
-
----
-
-Write the stand-up summary now. Follow the format and rules above exactly.`;
 }
 </file>
 
@@ -3276,6 +3451,569 @@ npm test
 MIT
 </file>
 
+<file path="src/cli/commands/mintlify.ts">
+import { execSync } from 'child_process';
+import { Command } from 'commander';
+import { loadConfig } from '../../config/loader';
+import { MintlifyDeployClient } from '../../integrations/mintlify/deploy';
+import { appendDeployRecord, listDeployRecords, filterRecordsSince } from '../../integrations/mintlify/cache';
+import { MintlifyDeployRecord, MintlifyStatusResponse } from '../../integrations/mintlify/types';
+import { GeminiProvider } from '../../llm/gemini';
+import { buildDeploymentSummaryPrompt } from '../../llm/prompts';
+import os from 'os';
+
+const GREEN = '\x1b[32m';
+const RED = '\x1b[31m';
+const YELLOW = '\x1b[33m';
+const DIM = '\x1b[2m';
+const RESET = '\x1b[0m';
+const BOLD = '\x1b[1m';
+
+function pass(label: string, detail: string): void {
+  console.log(`  ${GREEN}✓${RESET} ${label.padEnd(20)} ${DIM}${detail}${RESET}`);
+}
+
+function fail(label: string, detail: string): void {
+  console.log(`  ${RED}✗${RESET} ${label.padEnd(20)} ${DIM}${detail}${RESET}`);
+}
+
+function skip(label: string, detail: string): void {
+  console.log(`  ${DIM}-${RESET} ${label.padEnd(20)} ${DIM}${detail}${RESET}`);
+}
+
+function currentBranchName(repoPath: string): string {
+  try {
+    return execSync('git rev-parse --abbrev-ref HEAD', { cwd: repoPath, encoding: 'utf8' }).trim();
+  } catch {
+    return '';
+  }
+}
+
+function formatElapsed(startMs: number): string {
+  const totalSec = Math.floor((Date.now() - startMs) / 1000);
+  const m = Math.floor(totalSec / 60).toString().padStart(2, '0');
+  const s = (totalSec % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+function shortenPath(p: string): string {
+  return p.replace(os.homedir(), '~');
+}
+
+export function mintlifyCommand(): Command {
+  const cmd = new Command('mintlify').description('Mintlify deployment commands');
+
+  // ── trigger ──────────────────────────────────────────────────────────────────
+  cmd
+    .command('trigger')
+    .description('Trigger a Mintlify documentation deployment')
+    .option('--production', 'deploy to the live site (default: preview)')
+    .option('--branch <name>', 'branch name for preview deployment')
+    .option('--project-id <id>', 'Mintlify project ID (overrides config and MINTLIFY_PROJECT_ID)')
+    .option('--fire-and-forget', 'print statusId and exit without waiting for completion')
+    .action(async (options) => {
+      const config = loadConfig();
+
+      const apiKey = config.integrations?.mintlify?.apiKey;
+      if (!apiKey) {
+        console.error('Error: MINTLIFY_API_KEY is not set.');
+        console.error('  export MINTLIFY_API_KEY=mint_...');
+        console.error('  or: daily-summary config set integrations.mintlify.apiKey mint_...');
+        process.exit(1);
+      }
+
+      const projectId: string = options.projectId ?? config.integrations?.mintlify?.projectId ?? '';
+      if (!projectId) {
+        console.error('Error: Mintlify project ID is not set.');
+        console.error('  Pass it as a flag: --project-id <id>');
+        console.error('  Or set it: daily-summary config set integrations.mintlify.projectId <id>');
+        console.error('  Or export: MINTLIFY_PROJECT_ID=<id>');
+        process.exit(1);
+      }
+
+      const mode = options.production ? 'production' : 'preview';
+      const client = new MintlifyDeployClient(apiKey, projectId);
+
+      // Resolve branch for preview
+      let branch: string | undefined;
+      if (mode === 'preview') {
+        branch = options.branch ?? currentBranchName(config.repoPath) ?? config.branch;
+        if (!branch || branch === 'HEAD') {
+          console.error('Error: Could not determine branch for preview deployment.');
+          console.error('  Pass it explicitly: --branch <name>');
+          process.exit(1);
+        }
+      }
+
+      if (options.fireAndForget) {
+        // Fire-and-forget — trigger and exit immediately
+        try {
+          const result = mode === 'preview'
+            ? await client.triggerPreview(branch!)
+            : await client.triggerProduction();
+          console.log(`statusId:   ${result.statusId}`);
+          if ('previewUrl' in result && result.previewUrl) {
+            console.log(`previewUrl: ${result.previewUrl}`);
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error(`Error: ${message}`);
+          process.exit(1);
+        }
+        return;
+      }
+
+      // Poll until done
+      const start = Date.now();
+      console.log(`\nTriggering Mintlify ${mode} deployment${branch ? ` (branch: ${branch})` : ''}...\n`);
+
+      try {
+        const { statusId, previewUrl, finalStatus, filesChanged } = await client.triggerAndWait(mode, {
+          branch,
+          onTick(status: MintlifyStatusResponse) {
+            const elapsed = formatElapsed(start);
+            const msg = `  Deploying... [${status.status}] ${elapsed}`;
+            if (process.stdout.isTTY) {
+              process.stdout.write(`\r${msg}   `);
+            } else {
+              console.log(msg);
+            }
+          },
+        });
+
+        if (process.stdout.isTTY) process.stdout.write('\n');
+
+        const success = finalStatus.status === 'success';
+        const elapsed = formatElapsed(start);
+        const statusLabel = success ? `${GREEN}success${RESET}` : `${RED}failure${RESET}`;
+        console.log(`\n  ${BOLD}Status ID:${RESET} ${statusId}`);
+        console.log(`  ${BOLD}Status:${RESET}    ${statusLabel} (${elapsed})`);
+        if (finalStatus.subdomain) {
+          console.log(`  ${BOLD}Site:${RESET}      ${finalStatus.subdomain}`);
+        }
+        if (previewUrl) {
+          console.log(`  ${BOLD}Preview:${RESET}   ${previewUrl}`);
+        }
+        if (finalStatus.summary) {
+          console.log(`  ${BOLD}Summary:${RESET}   ${finalStatus.summary}`);
+        }
+        if (filesChanged) {
+          const total = filesChanged.added.length + filesChanged.modified.length + filesChanged.removed.length;
+          if (total > 0) {
+            console.log(`  ${BOLD}Files:${RESET}     +${filesChanged.added.length} ~${filesChanged.modified.length} -${filesChanged.removed.length}`);
+          }
+        }
+
+        const record = client.buildDeployRecord(statusId, mode, finalStatus, { branch, previewUrl });
+        appendDeployRecord(record);
+        console.log(`\n  ${DIM}Deployment cached. Run: daily-summary mintlify history${RESET}\n`);
+
+        if (!success) process.exit(1);
+      } catch (err) {
+        if (process.stdout.isTTY) process.stdout.write('\n');
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`\nError: ${message}`);
+        process.exit(1);
+      }
+    });
+
+  // ── status ───────────────────────────────────────────────────────────────────
+  cmd
+    .command('status <statusId>')
+    .description('Check the status of a Mintlify deployment by statusId')
+    .option('--project-id <id>', 'Mintlify project ID (overrides config and MINTLIFY_PROJECT_ID)')
+    .action(async (statusId: string, options) => {
+      const config = loadConfig();
+
+      const apiKey = config.integrations?.mintlify?.apiKey;
+      if (!apiKey) {
+        console.error('Error: MINTLIFY_API_KEY is not set.');
+        process.exit(1);
+      }
+
+      const projectId: string = options.projectId ?? config.integrations?.mintlify?.projectId ?? 'unknown';
+      const client = new MintlifyDeployClient(apiKey, projectId);
+
+      try {
+        const status = await client.getStatus(statusId);
+
+        console.log(`\n${BOLD}Deployment Status${RESET}\n`);
+        const statusColour = status.status === 'success'
+          ? GREEN
+          : status.status === 'failure'
+            ? RED
+            : YELLOW;
+        pass('statusId', statusId);
+        console.log(`  ${statusColour}●${RESET} ${'status'.padEnd(20)} ${DIM}${status.status}${RESET}`);
+        if (status.subdomain) pass('subdomain', status.subdomain);
+        if (status.summary) pass('summary', status.summary);
+        if (status.createdAt) pass('created', status.createdAt);
+        if (status.endedAt) pass('ended', status.endedAt);
+        if (status.commit) {
+          pass('commit', `${status.commit.sha.slice(0, 7)} ${status.commit.message}`);
+          const fc = status.commit.filesChanged;
+          if (fc) {
+            pass('files changed', `+${fc.added.length} ~${fc.modified.length} -${fc.removed.length}`);
+          }
+        }
+        if (status.source) skip('source', status.source);
+        console.log();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`Error: ${message}`);
+        process.exit(1);
+      }
+    });
+
+  // ── history ──────────────────────────────────────────────────────────────────
+  cmd
+    .command('history')
+    .description('List cached Mintlify deployment records')
+    .option('--limit <n>', 'number of records to show', '20')
+    .action((options) => {
+      const limit = parseInt(options.limit, 10);
+      const records = listDeployRecords(isNaN(limit) ? 20 : limit);
+
+      if (records.length === 0) {
+        console.log('No deployment records yet. Run: daily-summary mintlify trigger');
+        return;
+      }
+
+      const rows = records.map((r) => ({
+        date: r.triggeredAt.split('T')[0],
+        mode: r.mode,
+        branch: r.branch ?? '—',
+        status: r.finalStatus,
+        location: r.previewUrl ?? r.subdomain ?? '—',
+      }));
+
+      const colWidths = {
+        date: Math.max(10, ...rows.map((r) => r.date.length)),
+        mode: Math.max(4, ...rows.map((r) => r.mode.length)),
+        branch: Math.max(6, ...rows.map((r) => r.branch.length)),
+        status: Math.max(7, ...rows.map((r) => r.status.length)),
+      };
+
+      const header = [
+        'Date'.padEnd(colWidths.date),
+        'Mode'.padEnd(colWidths.mode),
+        'Branch'.padEnd(colWidths.branch),
+        'Status'.padEnd(colWidths.status),
+        'Location',
+      ].join('  ');
+
+      console.log(header);
+      console.log('-'.repeat(header.length));
+
+      for (const row of rows) {
+        const statusColour = row.status === 'success' ? GREEN : row.status === 'failure' ? RED : YELLOW;
+        console.log(
+          [
+            row.date.padEnd(colWidths.date),
+            row.mode.padEnd(colWidths.mode),
+            row.branch.padEnd(colWidths.branch),
+            `${statusColour}${row.status}${RESET}`.padEnd(colWidths.status + statusColour.length + RESET.length),
+            shortenPath(row.location),
+          ].join('  ')
+        );
+      }
+    });
+
+  // ── summary ──────────────────────────────────────────────────────────────────
+  cmd
+    .command('summary')
+    .description('Summarize Mintlify deployments over a time window using LLM')
+    .option('--since <duration>', 'time window: 24h, 7d, 1w, etc.', '24h')
+    .option('--raw', 'print raw file change table without LLM summary')
+    .option('--project-id <id>', 'Mintlify project ID (used for back-filling missing data)')
+    .action(async (options) => {
+      const config = loadConfig();
+      const since: string = options.since;
+
+      // Validate LLM credentials unless --raw
+      if (!options.raw) {
+        if (!config.llm.apiKey) {
+          console.error('Error: GEMINI_API_KEY is not set. Use --raw to skip LLM, or run: daily-summary config init');
+          process.exit(1);
+        }
+        if (!config.llm.model) {
+          console.error('Error: GEMINI_MODEL is not set. Use --raw to skip LLM, or run: daily-summary config init');
+          process.exit(1);
+        }
+      }
+
+      const all = listDeployRecords();
+      const records = filterRecordsSince(all, since);
+
+      if (records.length === 0) {
+        console.log(`No Mintlify deployments found in the last ${since}.`);
+        console.log('Run: daily-summary mintlify trigger');
+        return;
+      }
+
+      const previews = records.filter((r) => r.mode === 'preview').length;
+      const productions = records.filter((r) => r.mode === 'production').length;
+      console.log(`\n${BOLD}Mintlify Docs Summary${RESET} — last ${since}`);
+      console.log(`${records.length} deployment(s): ${previews} preview · ${productions} production\n`);
+
+      // Header table
+      const rows = records.map((r) => ({
+        date: r.triggeredAt.replace('T', ' ').slice(0, 16),
+        mode: r.mode,
+        branch: r.branch ?? '—',
+        status: r.finalStatus,
+      }));
+      const colWidths = {
+        date: Math.max(16, ...rows.map((r) => r.date.length)),
+        mode: Math.max(4, ...rows.map((r) => r.mode.length)),
+        branch: Math.max(6, ...rows.map((r) => r.branch.length)),
+        status: Math.max(7, ...rows.map((r) => r.status.length)),
+      };
+      const header = [
+        'Date'.padEnd(colWidths.date),
+        'Mode'.padEnd(colWidths.mode),
+        'Branch'.padEnd(colWidths.branch),
+        'Status',
+      ].join('  ');
+      console.log(header);
+      console.log('-'.repeat(header.length));
+      for (const row of rows) {
+        const statusColour = row.status === 'success' ? GREEN : row.status === 'failure' ? RED : YELLOW;
+        console.log([
+          row.date.padEnd(colWidths.date),
+          row.mode.padEnd(colWidths.mode),
+          row.branch.padEnd(colWidths.branch),
+          `${statusColour}${row.status}${RESET}`,
+        ].join('  '));
+      }
+
+      // Back-fill any records missing filesChanged via the status API
+      const projectId = options.projectId ?? config.integrations?.mintlify?.projectId;
+      const apiKey = config.integrations?.mintlify?.apiKey;
+      const needsBackfill = records.filter((r) => !r.filesChanged);
+      if (needsBackfill.length > 0 && apiKey && projectId) {
+        const client = new MintlifyDeployClient(apiKey, projectId);
+        for (const record of needsBackfill) {
+          try {
+            const status = await client.getStatus(record.statusId);
+            if (status.commit?.filesChanged) {
+              (record as MintlifyDeployRecord).filesChanged = status.commit.filesChanged;
+              (record as MintlifyDeployRecord).commitSha = status.commit.sha;
+              (record as MintlifyDeployRecord).commitMessage = status.commit.message;
+            }
+          } catch {
+            // best-effort; skip if unavailable
+          }
+        }
+      }
+
+      if (options.raw) {
+        // Raw output — print per-deployment file change tables
+        console.log();
+        records.forEach((r, i) => {
+          const date = r.triggeredAt.replace('T', ' ').slice(0, 16);
+          const sha = r.commitSha ? r.commitSha.slice(0, 7) : 'unknown';
+          console.log(`${BOLD}Deployment ${i + 1}${RESET} — ${date} · ${r.mode} · ${r.branch ?? 'unknown'}`);
+          if (r.commitMessage) {
+            console.log(`  ${DIM}Commit: ${sha} "${r.commitMessage}"${RESET}`);
+          }
+          if (r.filesChanged) {
+            const { added, modified, removed } = r.filesChanged;
+            if (added.length > 0) console.log(`  ${GREEN}+${RESET} added:    ${added.join(', ')}`);
+            if (modified.length > 0) console.log(`  ${YELLOW}~${RESET} modified: ${modified.join(', ')}`);
+            if (removed.length > 0) console.log(`  ${RED}-${RESET} removed:  ${removed.join(', ')}`);
+            if (added.length === 0 && modified.length === 0 && removed.length === 0) {
+              console.log(`  ${DIM}(no file changes recorded)${RESET}`);
+            }
+          } else {
+            console.log(`  ${DIM}(no file data — trigger with polling to capture changes)${RESET}`);
+          }
+          console.log();
+        });
+        return;
+      }
+
+      // LLM summary
+      console.log(`\n${BOLD}Summary${RESET}`);
+      console.log('-'.repeat(40));
+      try {
+        const provider = new GeminiProvider(config.llm.apiKey!, config.llm.model!);
+        const prompt = buildDeploymentSummaryPrompt(records);
+        const summary = await provider.rawPrompt(prompt);
+        console.log(summary);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`\nLLM error: ${message}`);
+        console.error('Use --raw to print file changes without LLM.');
+        process.exit(1);
+      }
+      console.log();
+    });
+
+  return cmd;
+}
+</file>
+
+<file path="src/llm/prompts.ts">
+import { SummaryLength, CommitCategory } from '../config/types';
+import { NormalizedCommit } from '../git/normalizer';
+import { MintlifyDeployRecord } from '../integrations/mintlify/types';
+
+// Category display labels (order defines section order in output)
+const CATEGORY_LABELS: Record<CommitCategory, string> = {
+  feat: 'Features',
+  fix: 'Bug Fixes',
+  perf: 'Performance',
+  refactor: 'Refactors & Improvements',
+  test: 'Tests',
+  docs: 'Documentation',
+  chore: 'Chores & Maintenance',
+  other: 'Other Changes',
+};
+
+const CATEGORY_ORDER: CommitCategory[] = ['feat', 'fix', 'perf', 'refactor', 'test', 'docs', 'chore', 'other'];
+
+const LENGTH_INSTRUCTIONS: Record<SummaryLength, string> = {
+  short: `Write 3–5 bullet points covering only the most impactful changes (features and fixes first).
+- Each bullet: max 80 characters
+- One section maximum — no category headers
+- Format: "• [Past-tense action] [brief impact if clear]"`,
+
+  medium: `Write a grouped summary with section headers for each category that has commits.
+- 2–4 bullets per populated section
+- Each bullet: max 100 characters
+- Sections appear in this order (omit empty ones): Features → Bug Fixes → Performance → Refactors & Improvements → Tests → Documentation → Chores & Maintenance
+- Format each bullet: "- [Past-tense action] – [user/team impact, if discernible]"`,
+
+  long: `Write a detailed grouped summary.
+- Open with a 2-sentence "theme" paragraph summarizing the day's overall direction
+- Then provide section headers for each category that has commits
+- Up to 8 bullets per section; each bullet max 120 characters
+- Include file-level detail (e.g., "in auth/provider.ts") where it adds context
+- Sections in order: Features → Bug Fixes → Performance → Refactors & Improvements → Tests → Documentation → Chores & Maintenance
+- Format each bullet: "- [Past-tense action] – [impact or detail]"`,
+};
+
+const SYSTEM_RULES = `You are a senior engineering writer generating a professional daily stand-up summary from git commit data.
+
+VOICE & STYLE RULES (follow strictly):
+- Use past-tense imperative voice: "Added X", "Fixed Y", "Improved Z" — NOT "Adding X" or "We added X"
+- Be specific about what changed and why it matters; avoid vague language ("cleaned up code", "made improvements")
+- Do not invent performance metrics, numbers, or impact claims that are not present in the commit messages or diffs
+- Do not include commit SHAs, author names, or timestamps in the output
+- Omit trivial commits: whitespace-only changes, lock file bumps, minor version pins with no feature impact
+- If a commit message includes "BREAKING CHANGE" or "!", prefix that bullet with "⚠ BREAKING:"
+- If a commit message mentions a blocker, dependency wait, or TODO, prefix that bullet with "🔴 BLOCKED:"
+- Write for a technical audience (engineers and tech leads) — be precise but concise
+
+QUALITY BAR:
+- A reader should understand what shipped, what broke, and what improved in under 30 seconds
+- Each bullet should be independently meaningful — no vague fillers
+- Prioritize user-visible and system-visible impact over implementation details`;
+
+function formatCommitForPrompt(c: NormalizedCommit): string {
+  const stat = `+${c.diffStat.insertions}/-${c.diffStat.deletions}`;
+  const files = c.changedFiles.length > 0 ? ` → ${c.changedFiles.slice(0, 4).join(', ')}${c.changedFiles.length > 4 ? ', …' : ''}` : '';
+  const diff = c.diff ? `\n  diff:\n${c.diff.split('\n').slice(0, 20).map((l) => '  ' + l).join('\n')}` : '';
+  return `[${c.category}] ${c.message} (${stat})${files}${diff}`;
+}
+
+function groupCommitsByCategory(commits: NormalizedCommit[]): Map<CommitCategory, NormalizedCommit[]> {
+  const groups = new Map<CommitCategory, NormalizedCommit[]>();
+  for (const commit of commits) {
+    const existing = groups.get(commit.category) ?? [];
+    existing.push(commit);
+    groups.set(commit.category, existing);
+  }
+  return groups;
+}
+
+export function buildSummarizationPrompt(commits: NormalizedCommit[], length: SummaryLength): string {
+  const groups = groupCommitsByCategory(commits);
+
+  // Build the commit block in category order so the LLM receives pre-organized input
+  const orderedSections = CATEGORY_ORDER
+    .filter((cat) => groups.has(cat))
+    .map((cat) => {
+      const label = CATEGORY_LABELS[cat];
+      const items = groups.get(cat)!.map((c) => `  ${formatCommitForPrompt(c)}`).join('\n');
+      return `### ${label}\n${items}`;
+    })
+    .join('\n\n');
+
+  const commitBlock = orderedSections || commits.map((c) => formatCommitForPrompt(c)).join('\n');
+
+  return `${SYSTEM_RULES}
+
+---
+
+OUTPUT FORMAT:
+${LENGTH_INSTRUCTIONS[length]}
+
+---
+
+COMMITS (pre-classified by type):
+
+${commitBlock}
+
+---
+
+Write the stand-up summary now. Follow the format and rules above exactly.`;
+}
+
+export function buildDeploymentSummaryPrompt(records: MintlifyDeployRecord[]): string {
+  const hasFileData = records.some((r) => r.filesChanged);
+
+  const deploymentBlocks = records.map((r, i) => {
+    const date = r.triggeredAt.replace('T', ' ').slice(0, 16);
+    const lines = [
+      `[${i + 1}] ${date} — ${r.mode} deployment — branch: ${r.branch ?? 'unknown'} — status: ${r.finalStatus}`,
+    ];
+    if (r.commitSha) lines.push(`    Commit: ${r.commitSha.slice(0, 7)} "${r.commitMessage ?? ''}"`);
+    if (r.filesChanged) {
+      const { added, modified, removed } = r.filesChanged;
+      lines.push(`    Files added:    ${added.join(', ') || 'none'}`);
+      lines.push(`    Files modified: ${modified.join(', ') || 'none'}`);
+      lines.push(`    Files removed:  ${removed.join(', ') || 'none'}`);
+    } else {
+      lines.push('    Files changed:  (not available — API-triggered deployments do not expose commit data)');
+    }
+    if (r.summary) lines.push(`    Mintlify status: "${r.summary}"`);
+    if (r.subdomain) lines.push(`    Site: ${r.subdomain}`);
+    return lines.join('\n');
+  });
+
+  const fileDataNote = hasFileData
+    ? ''
+    : `\nNote: File-level change data is unavailable for these deployments (Mintlify does not expose commit details for API-triggered builds). Summarize deployment activity instead — when docs were updated, on which branch, and how frequently.\n`;
+
+  return `You are a technical documentation assistant. Summarize the following Mintlify documentation deployments.
+${fileDataNote}
+${deploymentBlocks.join('\n\n')}
+
+---
+
+${hasFileData
+    ? `Write a concise bullet-point summary of what changed in the documentation.
+Rules:
+- Group related file changes together (e.g. all API reference changes in one bullet)
+- Name specific files or sections where possible (drop path prefixes for readability)
+- Use past tense: "Updated X", "Added Y", "Removed Z"
+- Focus on what a reader of the docs would notice
+- Max 8 bullets total
+- No preamble — start directly with the first bullet`
+    : `Write a concise bullet-point summary of the documentation deployment activity.
+Rules:
+- Summarize how many deployments happened, on which branch, and in what mode
+- Note the time range and frequency (e.g. "4 preview deployments over 30 minutes")
+- Mention the docs site or subdomain if available
+- Use past tense
+- Max 4 bullets
+- No preamble — start directly with the first bullet`
+  }`;
+}
+</file>
+
 <file path="src/config/types.ts">
 export type SummaryLength = 'short' | 'medium' | 'long';
 export type OutputFormat = 'markdown' | 'html' | 'both';
@@ -3315,9 +4053,15 @@ export interface DocsRepoConfig {
   autoCommit?: boolean;
 }
 
+export interface MintlifyIntegrationConfig {
+  apiKey?: string;
+  projectId?: string;
+}
+
 export interface IntegrationsConfig {
   linear?: LinearIntegrationConfig;
   docsRepo?: DocsRepoConfig;
+  mintlify?: MintlifyIntegrationConfig;
 }
 
 export type ConfigScope = 'local' | 'global';
@@ -3328,6 +4072,7 @@ import path from 'path';
 import { Config, CommitCategory } from '../config/types';
 import { NormalizedCommit } from '../git/normalizer';
 import { TicketGroup } from '../integrations/types';
+import { DocSignal } from '../docs/types';
 
 export interface Report {
   date: string;
@@ -3414,6 +4159,28 @@ export function buildTicketSection(groups: TicketGroup[]): string {
   return sections.join('\n\n');
 }
 
+const SEVERITY_BADGE: Record<string, string> = {
+  high: 'HIGH',
+  medium: 'MED',
+  low: 'LOW',
+};
+
+function buildDocsImpactSection(signals: DocSignal[], mintlifyConfigured: boolean): string {
+  if (signals.length === 0) return '';
+
+  const rows = signals.map((s) => {
+    const badge = SEVERITY_BADGE[s.severity] ?? s.severity.toUpperCase();
+    const file = `\`${s.triggerFile}\``;
+    return `| ${badge} | ${s.category} | ${file} | ${s.triggerPattern} |`;
+  });
+
+  const cta = mintlifyConfigured
+    ? 'Run `daily-summary mintlify trigger` to deploy.'
+    : 'Run `daily-summary docs` for a full interactive review.';
+
+  return `\n---\n\n## Docs Impact\n\n_${signals.length} area${signals.length !== 1 ? 's' : ''} may need documentation updates._\n\n| Severity | Category | File | Signal |\n|----------|----------|------|--------|\n${rows.join('\n')}\n\n> ${cta}\n`;
+}
+
 function buildMarkdown(
   date: string,
   repoName: string,
@@ -3422,9 +4189,15 @@ function buildMarkdown(
   commits: NormalizedCommit[],
   summary: string,
   ticketGroups?: TicketGroup[],
+  docSignals?: DocSignal[],
+  mintlifyConfigured?: boolean,
 ): string {
   const ticketSection = ticketGroups && ticketGroups.length > 0
     ? `\n---\n\n## By Issue\n\n${buildTicketSection(ticketGroups)}\n`
+    : '';
+
+  const docsImpactSection = docSignals && docSignals.length > 0
+    ? buildDocsImpactSection(docSignals, mintlifyConfigured ?? false)
     : '';
 
   return `# Daily Stand-up — ${date}
@@ -3442,7 +4215,7 @@ ${summary}
 ## Commits by Category
 
 ${buildCommitsByCategory(commits)}
-${ticketSection}`.trim() + '\n';
+${ticketSection}${docsImpactSection}`.trim() + '\n';
 }
 
 export function generateReport(
@@ -3450,10 +4223,12 @@ export function generateReport(
   summary: string,
   config: Config,
   ticketGroups?: TicketGroup[],
+  docSignals?: DocSignal[],
 ): Report {
   const date = formatDate();
   const repoName = path.basename(path.resolve(config.repoPath));
-  const content = buildMarkdown(date, repoName, config.branch, config.timeWindow, commits, summary, ticketGroups);
+  const mintlifyConfigured = !!(config.integrations?.mintlify?.apiKey && config.integrations?.mintlify?.projectId);
+  const content = buildMarkdown(date, repoName, config.branch, config.timeWindow, commits, summary, ticketGroups, docSignals, mintlifyConfigured);
 
   return {
     date,
@@ -3483,6 +4258,7 @@ import { extractIssueRefs, extractIssueRefsFromBranch } from '../../integrations
 import { LinearIntegrationClient } from '../../integrations/linear/client';
 import { EnrichedCommit, TicketGroup } from '../../integrations/types';
 import { NormalizedCommit } from '../../git/normalizer';
+import { detectDocSignals } from '../../docs/detector';
 
 interface RunOptions {
   since?: string;
@@ -3644,7 +4420,9 @@ export async function runCommand(options: RunOptions): Promise<void> {
     }
   }
 
-  let report = generateReport(normalized, summary, config, ticketGroups);
+  const docSignals = detectDocSignals(normalized);
+
+  let report = generateReport(normalized, summary, config, ticketGroups, docSignals.length > 0 ? docSignals : undefined);
 
   if (options.edit) {
     console.log('Opening in editor for review...');
@@ -3672,6 +4450,10 @@ GEMINI_MODEL=gemini-2.0-flash-lite
 
 # Optional: Linear integration — get a key at https://linear.app/settings/account/security
 LINEAR_API_KEY=your_linear_api_key_here
+
+# Optional: Mintlify deployment integration — get your key at https://mintlify.com/settings
+MINTLIFY_API_KEY=mint_your_key_here
+MINTLIFY_PROJECT_ID=your-project-id
 </file>
 
 <file path="src/config/loader.ts">
@@ -3716,6 +4498,7 @@ function mergeIntegrations(
     ...override,
     linear: { ...(base?.linear ?? {}), ...(override?.linear ?? {}) },
     docsRepo: { ...(base?.docsRepo ?? {}), ...(override?.docsRepo ?? {}) },
+    mintlify: { ...(base?.mintlify ?? {}), ...(override?.mintlify ?? {}) },
   };
 }
 
@@ -3784,6 +4567,20 @@ export function loadConfig(): Config {
     if (!config.integrations) config.integrations = {};
     if (!config.integrations.linear) config.integrations.linear = {};
     config.integrations.linear.apiKey = linearKey;
+  }
+
+  const mintlifyKey = process.env.MINTLIFY_API_KEY;
+  if (mintlifyKey) {
+    if (!config.integrations) config.integrations = {};
+    if (!config.integrations.mintlify) config.integrations.mintlify = {};
+    config.integrations.mintlify.apiKey = mintlifyKey;
+  }
+
+  const mintlifyProjectId = process.env.MINTLIFY_PROJECT_ID;
+  if (mintlifyProjectId) {
+    if (!config.integrations) config.integrations = {};
+    if (!config.integrations.mintlify) config.integrations.mintlify = {};
+    config.integrations.mintlify.projectId = mintlifyProjectId;
   }
 
   return config;
@@ -3865,6 +4662,9 @@ export function maskConfig(config: Config): Config {
   if (masked.integrations?.linear?.apiKey) {
     masked.integrations.linear.apiKey = '***';
   }
+  if (masked.integrations?.mintlify?.apiKey) {
+    masked.integrations.mintlify.apiKey = '***';
+  }
   return masked;
 }
 </file>
@@ -3883,6 +4683,7 @@ import { docsCommand } from './commands/docs';
 import { loadConfig } from '../config/loader';
 import { doctorCommand } from './commands/doctor';
 import { exportDocTasks, pushToDocsRepo } from '../docs/exporter';
+import { mintlifyCommand } from './commands/mintlify';
 
 const program = new Command();
 
@@ -4059,6 +4860,8 @@ docsCmd
       process.exit(1);
     }
   });
+
+program.addCommand(mintlifyCommand());
 
 program
   .command('doctor')
