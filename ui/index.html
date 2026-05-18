@@ -8,6 +8,29 @@
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       body { font-family: system-ui, -apple-system, sans-serif; background: #f9f9f9; }
       code { font-family: ui-monospace, monospace; background: #f0f0f0; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; }
+
+      /* Markdown report body — restores sensible defaults inside rendered HTML */
+      .md-body { color: #222; line-height: 1.7; font-size: 15px; }
+      .md-body h1 { font-size: 1.6em; font-weight: 700; margin: 0 0 16px; }
+      .md-body h2 { font-size: 1.3em; font-weight: 700; margin: 28px 0 10px; border-bottom: 1px solid #e5e5e5; padding-bottom: 6px; }
+      .md-body h3 { font-size: 1.1em; font-weight: 600; margin: 20px 0 8px; }
+      .md-body h4 { font-size: 1em; font-weight: 600; margin: 16px 0 6px; }
+      .md-body p { margin: 0 0 12px; }
+      .md-body ul, .md-body ol { margin: 0 0 12px 24px; }
+      .md-body li { margin-bottom: 4px; }
+      .md-body li > ul, .md-body li > ol { margin-top: 4px; margin-bottom: 4px; }
+      .md-body code { font-family: ui-monospace, monospace; font-size: 0.88em; background: #f0f0f0; padding: 2px 5px; border-radius: 3px; }
+      .md-body pre { background: #1e1e1e; color: #d4d4d4; border-radius: 6px; padding: 16px; margin: 0 0 16px; overflow-x: auto; }
+      .md-body pre code { background: none; padding: 0; color: inherit; font-size: 0.875em; border-radius: 0; }
+      .md-body blockquote { border-left: 3px solid #d0d0d0; padding-left: 16px; color: #666; margin: 0 0 12px; }
+      .md-body hr { border: none; border-top: 1px solid #e5e5e5; margin: 24px 0; }
+      .md-body table { border-collapse: collapse; width: 100%; margin: 0 0 16px; font-size: 14px; }
+      .md-body th { text-align: left; padding: 8px 12px; border-bottom: 2px solid #e5e5e5; font-weight: 600; color: #555; }
+      .md-body td { padding: 7px 12px; border-bottom: 1px solid #f0f0f0; }
+      .md-body tr:last-child td { border-bottom: none; }
+      .md-body a { color: #276749; text-decoration: none; }
+      .md-body a:hover { text-decoration: underline; }
+      .md-body strong { font-weight: 600; }
     </style>
   </head>
   <body>

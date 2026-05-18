@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { marked } from 'marked';
 import { api, ReportMeta, ReportContent } from '../api';
 
@@ -7,9 +7,11 @@ export default function Reports() {
   const [selected, setSelected] = useState<ReportContent | null>(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
+  const loadList = useCallback(() => {
     api.listReports().then(setReports);
   }, []);
+
+  useEffect(() => { loadList(); }, [loadList]);
 
   const handleSelect = async (filePath: string) => {
     setLoading(true);
@@ -24,7 +26,16 @@ export default function Reports() {
   return (
     <div style={{ display: 'flex', gap: 24, height: 'calc(100vh - 120px)' }}>
       <div style={{ width: 200, flexShrink: 0, overflowY: 'auto' }}>
-        <h2 style={{ ...heading, fontSize: 18 }}>Reports</h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <h2 style={heading}>Reports</h2>
+          <button
+            onClick={loadList}
+            title="Refresh list"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 16, padding: '2px 4px', lineHeight: 1 }}
+          >
+            ↺
+          </button>
+        </div>
         {reports.length === 0 && <p style={{ color: '#999', fontSize: 14 }}>No reports yet.</p>}
         {reports.map((r) => {
           const isSelected = selected?.filePath === r.filePath;
@@ -60,8 +71,8 @@ export default function Reports() {
         {!loading && !selected && <p style={{ color: '#bbb' }}>Select a report to view it.</p>}
         {!loading && selected && (
           <div
+            className="md-body"
             dangerouslySetInnerHTML={{ __html: marked(selected.content) as string }}
-            style={{ lineHeight: 1.7, fontSize: 15, color: '#222' }}
           />
         )}
       </div>
@@ -69,4 +80,4 @@ export default function Reports() {
   );
 }
 
-const heading: React.CSSProperties = { marginTop: 0, marginBottom: 16, fontWeight: 700 };
+const heading: React.CSSProperties = { marginTop: 0, fontWeight: 700, fontSize: 18 };

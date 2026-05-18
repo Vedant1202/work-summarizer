@@ -32,6 +32,19 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, [fetchStatus]);
 
+  useEffect(() => {
+    api.getConfig().then((c) => {
+      setOpts({
+        since: c.timeWindow || '24h',
+        branch: c.branch || '',
+        repo: c.repoPath || '',
+        length: c.llm.summaryLength || 'medium',
+        format: c.output.format || 'markdown',
+        withLinear: false,
+      });
+    });
+  }, []);
+
   const handleRun = async () => {
     setTriggering(true);
     try {
@@ -97,7 +110,7 @@ export default function Dashboard() {
       {showOptions && (
         <div style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: 8, padding: 20, maxWidth: 600, marginBottom: 24 }}>
           <div style={{ fontSize: 12, color: '#888', marginBottom: 16, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Run Options — blank fields use your config defaults
+            Run Options — pre-filled from your config
           </div>
 
           <Row label="Time window" hint="e.g. 24h, 2d, 1w">
