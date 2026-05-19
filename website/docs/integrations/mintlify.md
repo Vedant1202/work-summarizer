@@ -17,6 +17,16 @@ sidebar_position: 2
 
 ### 2. Configure them
 
+**Option A — `config init` (recommended)**
+
+```bash
+daily-summary config init
+```
+
+The setup wizard prompts for `MINTLIFY_API_KEY` and `MINTLIFY_PROJECT_ID` alongside your other credentials and saves them to `~/.daily-summary/.env`.
+
+**Option B — manual**
+
 ```bash
 export MINTLIFY_API_KEY="mint_..."
 export MINTLIFY_PROJECT_ID="my-project-id"

@@ -35,6 +35,8 @@ daily-summary config set llm.apiKey "AIza..."
 | Gemini API key | Yes | — |
 | Gemini model name | Yes | `gemini-3.1-flash-lite` |
 | Linear API key | No | — |
+| Mintlify API key | No | — |
+| Mintlify project ID | No | — |
 
 Previously saved values are shown masked (e.g. `AIza***key`) — press Enter to keep them.
 

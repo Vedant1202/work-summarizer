@@ -65,7 +65,9 @@ export async function configInitCommand(): Promise<void> {
     const fields: Array<{ key: string; label: string; required: boolean; default?: string }> = [
       { key: 'GEMINI_API_KEY', label: 'Gemini API key (https://aistudio.google.com/apikey)', required: true },
       { key: 'GEMINI_MODEL', label: 'Gemini model name', required: true, default: 'gemini-3.1-flash-lite' },
-      { key: 'LINEAR_API_KEY', label: 'Linear API key (optional — press Enter to skip)', required: false },
+      { key: 'LINEAR_API_KEY',       label: 'Linear API key (optional — press Enter to skip)',      required: false },
+      { key: 'MINTLIFY_API_KEY',    label: 'Mintlify API key (optional — press Enter to skip)',    required: false },
+      { key: 'MINTLIFY_PROJECT_ID', label: 'Mintlify project ID (optional — press Enter to skip)', required: false },
     ];
 
     const updates: Array<{ key: string; value: string }> = [];
