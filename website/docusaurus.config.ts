@@ -64,7 +64,7 @@ const config: Config = {
           position: 'right',
         },
         {
-          href: 'https://www.npmjs.com/package/daily-work-summarizer',
+          href: 'https://www.npmjs.com/package/daily-commit-summarizer',
           label: 'npm',
           position: 'right',
         },
@@ -98,7 +98,7 @@ const config: Config = {
             },
             {
               label: 'npm',
-              href: 'https://www.npmjs.com/package/daily-work-summarizer',
+              href: 'https://www.npmjs.com/package/daily-commit-summarizer',
             },
             {
               label: 'Report an issue',
