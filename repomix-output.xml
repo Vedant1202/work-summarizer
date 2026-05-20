@@ -2441,55 +2441,6 @@ crontab -e
 - The scheduled run picks up configuration from `~/.daily-summary/.env` and `~/.daily-summary/config.json`, so make sure your global setup is correct: `daily-summary doctor`.
 </file>
 
-<file path="website/docs/commands/ui.md">
----
-title: ui
-sidebar_label: ui
-sidebar_position: 2
----
-
-# `ui`
-
-Start a local web interface for `daily-commit-summarizer`. The UI exposes all of the CLI's features in a browser-based dashboard — no flags required.
-
-```bash
-daily-summary ui
-```
-
-The server starts on **port 7331** and automatically opens `http://localhost:7331` in your default browser. Press `Ctrl+C` to stop it.
-
----
-
-## What the UI Includes
-
-| Page | What you can do |
-|------|----------------|
-| **Dashboard** | Trigger a run with the same options as `daily-summary run` (time window, branch, repo, format, length, Linear enrichment). Pre-filled from your config. |
-| **Reports** | Browse all saved reports, click to open one, and read it with full Markdown rendering. |
-| **Config** | View and edit all configuration fields including API keys for Gemini, Linear, and Mintlify. |
-| **Mintlify** | Trigger preview or production deployments, browse deployment history, check a deployment's status by ID, and generate an LLM summary of recent activity. |
-| **Doctor** | Run the same health checks as `daily-summary doctor`. |
-
----
-
-## Example
-
-```bash
-daily-summary ui
-# daily-summary UI  →  http://localhost:7331
-```
-
-If port 7331 is already in use, the command exits with an error. Stop the existing instance first.
-
----
-
-## Notes
-
-- The UI reads and writes the same config files and report cache as the CLI — they share state.
-- API keys entered in the Config page are saved to `~/.daily-summary/config.json` (global) or `.daily-summary.json` (repo-local), the same as `daily-summary config set`.
-- The server does not require authentication — only run it on a trusted local network.
-</file>
-
 <file path="website/docs/configuration/overview.md">
 ---
 title: Overview
@@ -2888,207 +2839,6 @@ table th {
 }
 </file>
 
-<file path="website/src/pages/index.tsx">
-import React from 'react';
-import clsx from 'clsx';
-import Link from '@docusaurus/Link';
-import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
-import Layout from '@theme/Layout';
-import Heading from '@theme/Heading';
-import styles from './index.module.css';
-
-type FeatureItem = {
-  title: string;
-  emoji: string;
-  description: React.ReactNode;
-};
-
-const features: FeatureItem[] = [
-  {
-    title: 'AI-Powered Stand-ups',
-    emoji: '🤖',
-    description: (
-      <>
-        Scans git commits for any time window and generates a polished,
-        grouped stand-up summary using Gemini — categorised into features,
-        fixes, refactors, and more.
-      </>
-    ),
-  },
-  {
-    title: 'Linear Integration',
-    emoji: '📋',
-    description: (
-      <>
-        Enriches summaries with Linear issue metadata extracted from commit
-        messages and branch names. Group commits by issue, see status,
-        priority, and sprint — and create issues directly from the CLI.
-      </>
-    ),
-  },
-  {
-    title: 'Doc-Task Detection',
-    emoji: '📝',
-    description: (
-      <>
-        Automatically detects commits that need documentation follow-up —
-        new exports, CLI flags, breaking changes, schema changes — and
-        generates a reviewable task list with LLM-enriched action items.
-      </>
-    ),
-  },
-  {
-    title: 'Mintlify Deployments',
-    emoji: '🚀',
-    description: (
-      <>
-        Trigger, poll, and track Mintlify documentation deployments from
-        the CLI. View deployment history, check status by ID, and get an
-        AI-powered summary of what changed in your docs.
-      </>
-    ),
-  },
-  {
-    title: 'Flexible Output',
-    emoji: '📄',
-    description: (
-      <>
-        Export reports as Markdown, styled HTML, or both. Reports are saved
-        to <code>~/.daily-summary/reports/</code> and accessible via
-        the <code>history</code> and <code>export</code> commands.
-      </>
-    ),
-  },
-  {
-    title: 'Zero Config to Start',
-    emoji: '⚡',
-    description: (
-      <>
-        Run <code>daily-summary config init</code> for a 30-second setup
-        wizard, then <code>daily-summary run</code>. Supports repo-local and
-        global config files for team-wide defaults.
-      </>
-    ),
-  },
-];
-
-function Feature({ title, emoji, description }: FeatureItem) {
-  return (
-    <div className={clsx('col col--4', styles.feature)}>
-      <div className={styles.featureEmoji}>{emoji}</div>
-      <div className="padding-horiz--md">
-        <Heading as="h3">{title}</Heading>
-        <p>{description}</p>
-      </div>
-    </div>
-  );
-}
-
-function HomepageFeatures() {
-  return (
-    <section className={styles.features}>
-      <div className="container">
-        <div className="row">
-          {features.map((props, idx) => (
-            <Feature key={idx} {...props} />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function HomepageHero() {
-  const { siteConfig } = useDocusaurusContext();
-  return (
-    <header className={clsx('hero hero--primary', styles.heroBanner)}>
-      <div className="container">
-        <Heading as="h1" className="hero__title">
-          {siteConfig.title}
-        </Heading>
-        <p className="hero__subtitle">{siteConfig.tagline}</p>
-
-        <div className={styles.quickInstall}>
-          <code className={styles.installCmd}>npm install -g daily-commit-summarizer</code>
-        </div>
-
-        <div className={styles.buttons}>
-          <Link
-            className="button button--secondary button--lg"
-            to="/docs/introduction">
-            Get Started →
-          </Link>
-          <Link
-            className={clsx('button button--outline button--lg', styles.buttonGhost)}
-            to="https://github.com/vedantnandoskar/daily-commit-summarizer">
-            View on GitHub
-          </Link>
-        </div>
-      </div>
-    </header>
-  );
-}
-
-export default function Home(): React.ReactElement {
-  return (
-    <Layout
-      title="daily-commit-summarizer"
-      description="CLI that turns git history into polished daily stand-up summaries using Gemini AI, with Linear integration and doc-task detection.">
-      <HomepageHero />
-      <main>
-        <HomepageFeatures />
-        <section className={styles.exampleSection}>
-          <div className="container">
-            <div className="row">
-              <div className="col col--6">
-                <Heading as="h2">From git log to stand-up in seconds</Heading>
-                <p>
-                  Point <code>daily-summary run</code> at any local repo, choose your
-                  time window, and get a structured report instantly. No server,
-                  no account required — just a Gemini API key.
-                </p>
-                <ul>
-                  <li>Works on any local git repository</li>
-                  <li>Filters lock files, binaries, and build output automatically</li>
-                  <li>Summarises features, fixes, refactors, tests, docs, and more</li>
-                  <li>Exports Markdown and styled HTML</li>
-                </ul>
-                <Link className="button button--primary" to="/docs/installation">
-                  Install in 2 minutes
-                </Link>
-              </div>
-              <div className="col col--6">
-                <pre className={styles.exampleOutput}>{`$ daily-summary run --since 24h --no-edit
-
-Scanning commits on branch "main" since 24h...
-Found 6 commit(s). Normalizing diffs...
-Summarizing with gemini-2.0-flash-lite (medium)...
-Report saved to: ~/.daily-summary/reports/2026-05-18-myapp.md
-
----
-
-## Summary
-
-**Features**
-- Added OAuth2 provider support with PKCE flow
-- Introduced rate-limiting middleware on all API routes
-
-**Bug Fixes**
-- Fixed null pointer in search endpoint when query is empty
-
-**Chores**
-- Upgraded Node.js runtime to v20.10 LTS`}
-                </pre>
-              </div>
-            </div>
-          </div>
-        </section>
-      </main>
-    </Layout>
-  );
-}
-</file>
-
 <file path="website/static/img/logo.svg">
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
   <defs>
@@ -3160,60 +2910,6 @@ Report saved to: ~/.daily-summary/reports/2026-05-18-myapp.md
   "extends": "@docusaurus/tsconfig",
   "compilerOptions": {
     "baseUrl": "."
-  }
-}
-</file>
-
-<file path="1.json">
-{
-  "name": "daily-commit-summarizer",
-  "version": "0.1.0",
-  "description": "Generate daily stand-up summaries from git commits using Gemini AI",
-  "type": "commonjs",
-  "license": "MIT",
-  "engines": {
-    "node": ">=18"
-  },
-  "keywords": [
-    "git",
-    "standup",
-    "summary",
-    "gemini",
-    "ai",
-    "cli",
-    "developer-tools",
-    "linear"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/vedantnandoskar/daily-commit-summarizer.git"
-  },
-  "bin": {
-    "daily-summary": "./dist/bin/daily-summary.js"
-  },
-  "files": [
-    "dist/",
-    "README.md",
-    "LICENSE"
-  ],
-  "scripts": {
-    "build": "tsc && chmod +x dist/bin/daily-summary.js",
-    "prepare": "npm run build",
-    "dev": "tsx src/bin/daily-summary.ts",
-    "start": "node dist/bin/daily-summary.js",
-    "test": "vitest run",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@google/generative-ai": "^0.21.0",
-    "@linear/sdk": "^84.0.0",
-    "commander": "^12.1.0"
-  },
-  "devDependencies": {
-    "@types/node": "^22.0.0",
-    "tsx": "^4.19.0",
-    "typescript": "^5.6.0",
-    "vitest": "^2.0.0"
   }
 }
 </file>
@@ -4564,154 +4260,6 @@ function btn(disabled: boolean): React.CSSProperties {
 </html>
 </file>
 
-<file path="website/docs/commands/config.md">
----
-title: config
-sidebar_label: config
-sidebar_position: 4
----
-
-# `config`
-
-View and modify the configuration for `daily-summary`.
-
-```bash
-daily-summary config <subcommand> [options]
-```
-
-## `config init`
-
-Interactive setup wizard. Prompts for API keys and model settings, then saves them to `~/.daily-summary/.env`.
-
-```bash
-daily-summary config init
-```
-
-Requires an interactive terminal (`stdin` must be a TTY). If you're in a non-interactive context, set values directly:
-
-```bash
-export GEMINI_API_KEY="AIza..."
-# or
-daily-summary config set llm.apiKey "AIza..."
-```
-
-### Wizard fields
-
-| Field | Required | Default |
-|---|---|---|
-| Gemini API key | Yes | — |
-| Gemini model name | Yes | `gemini-3.1-flash-lite` |
-| Linear API key | No | — |
-
-Previously saved values are shown masked (e.g. `AIza***key`) — press Enter to keep them.
-
----
-
-## `config show`
-
-Print the full merged configuration with API keys masked.
-
-```bash
-daily-summary config show
-```
-
-```json
-{
-  "repoPath": ".",
-  "branch": "main",
-  "timeWindow": "24h",
-  "llm": {
-    "summaryLength": "medium",
-    "apiKey": "***",
-    "model": "gemini-3.1-flash-lite"
-  },
-  "output": {
-    "dir": "/Users/you/.daily-summary/reports"
-  },
-  "integrations": {
-    "linear": {
-      "apiKey": "***",
-      "teamId": "abc123"
-    },
-    "mintlify": {
-      "apiKey": "***",
-      "projectId": "my-project"
-    }
-  }
-}
-```
-
----
-
-## `config get <key>`
-
-Read a single config value using a dot-path.
-
-```bash
-daily-summary config get <key>
-```
-
-### Examples
-
-```bash
-daily-summary config get output.dir
-# → /Users/you/.daily-summary/reports
-
-daily-summary config get llm.summaryLength
-# → medium
-
-daily-summary config get integrations.linear.teamId
-# → abc123
-```
-
----
-
-## `config set <key> <value>`
-
-Write a config value. Defaults to repo-local (`.daily-summary.json`). Use `--global` for `~/.daily-summary/config.json`.
-
-```bash
-daily-summary config set <key> <value> [--global]
-```
-
-### Options
-
-| Flag | Description |
-|---|---|
-| `--global` | Write to `~/.daily-summary/config.json` instead of the repo-local `.daily-summary.json`. |
-
-### Examples
-
-```bash
-# Repo-local settings
-daily-summary config set branch main
-daily-summary config set timeWindow 48h
-daily-summary config set output.format both
-daily-summary config set llm.summaryLength long
-
-# Integrations
-daily-summary config set integrations.linear.teamId "team-abc123"
-daily-summary config set integrations.docsRepo.path "/path/to/docs-repo"
-daily-summary config set integrations.mintlify.projectId "my-project"
-
-# Global settings (shared across repos)
-daily-summary config set output.dir "~/.daily-summary/reports" --global
-daily-summary config set llm.summaryLength medium --global
-```
-
-:::tip Secrets vs config
-API keys should live in `~/.daily-summary/.env` (managed by `config init`) or shell environment variables — **not** in JSON config files. Use `config set` for non-secret settings like `branch`, `timeWindow`, `output.dir`.
-:::
-
-## Config file locations
-
-| File | Scope | Written by |
-|---|---|---|
-| `~/.daily-summary/.env` | Global secrets | `config init` |
-| `~/.daily-summary/config.json` | Global non-secrets | `config set --global` |
-| `.daily-summary.json` | Repo-local | `config set` |
-</file>
-
 <file path="website/docs/commands/doctor.md">
 ---
 title: doctor
@@ -4997,6 +4545,55 @@ If your deployments were triggered by API (not a GitHub push), Mintlify may not 
 :::
 </file>
 
+<file path="website/docs/commands/ui.md">
+---
+title: ui
+sidebar_label: ui
+sidebar_position: 2
+---
+
+# `ui`
+
+Start a local web interface for `daily-work-summarizer`. The UI exposes all of the CLI's features in a browser-based dashboard — no flags required.
+
+```bash
+daily-summary ui
+```
+
+The server starts on **port 7331** and automatically opens `http://localhost:7331` in your default browser. Press `Ctrl+C` to stop it.
+
+---
+
+## What the UI Includes
+
+| Page | What you can do |
+|------|----------------|
+| **Dashboard** | Trigger a run with the same options as `daily-summary run` (time window, branch, repo, format, length, Linear enrichment). Pre-filled from your config. |
+| **Reports** | Browse all saved reports, click to open one, and read it with full Markdown rendering. |
+| **Config** | View and edit all configuration fields including API keys for Gemini, Linear, and Mintlify. |
+| **Mintlify** | Trigger preview or production deployments, browse deployment history, check a deployment's status by ID, and generate an LLM summary of recent activity. |
+| **Doctor** | Run the same health checks as `daily-summary doctor`. |
+
+---
+
+## Example
+
+```bash
+daily-summary ui
+# daily-summary UI  →  http://localhost:7331
+```
+
+If port 7331 is already in use, the command exits with an error. Stop the existing instance first.
+
+---
+
+## Notes
+
+- The UI reads and writes the same config files and report cache as the CLI — they share state.
+- API keys entered in the Config page are saved to `~/.daily-summary/config.json` (global) or `.daily-summary.json` (repo-local), the same as `daily-summary config set`.
+- The server does not require authentication — only run it on a trusted local network.
+</file>
+
 <file path="website/docs/configuration/config-files.md">
 ---
 title: Config Files
@@ -5201,473 +4798,205 @@ daily-summary config set integrations.mintlify.projectId "my-project"
 | `gemini-1.5-flash` | Balanced speed/quality. |
 </file>
 
-<file path="website/docs/integrations/mintlify.md">
----
-title: Mintlify
-sidebar_label: Mintlify
-sidebar_position: 2
----
-
-# Mintlify Integration
-
-`daily-summary` can trigger, poll, and track [Mintlify](https://mintlify.com) documentation deployments from the CLI. Deployment records are cached locally and can be summarised with Gemini.
-
-## Setup
-
-### 1. Get your credentials
-
-- **API key** — Mintlify dashboard → Settings → API key (starts with `mint_`)
-- **Project ID** — Mintlify dashboard → your project's settings page
-
-### 2. Configure them
-
-```bash
-export MINTLIFY_API_KEY="mint_..."
-export MINTLIFY_PROJECT_ID="my-project-id"
-# or persist:
-daily-summary config set integrations.mintlify.apiKey "mint_..."
-daily-summary config set integrations.mintlify.projectId "my-project-id"
-```
-
----
-
-## Triggering Deployments
-
-### Preview deployment (default)
-
-```bash
-daily-summary mintlify trigger
-```
-
-Uses the current branch (auto-detected from git). Polls until the deployment finishes and prints the result.
-
-### Production deployment
-
-```bash
-daily-summary mintlify trigger --production
-```
-
-### CI / fire-and-forget
-
-For CI pipelines where you don't want to block on the result:
-
-```bash
-daily-summary mintlify trigger --production --fire-and-forget
-# Output:
-#   statusId:   64a2fc3e8a0b12d3e4f56789
-#   previewUrl: https://preview.mintlify.app/...
-```
-
-The `statusId` is saved to `~/.daily-summary/mintlify-deployments.json` immediately with `finalStatus: queued`. The record updates to `success` or `failure` in the background once polling completes — so `mintlify history` always reflects in-progress deployments.
-
-You can check the result later:
-
-```bash
-daily-summary mintlify status 64a2fc3e8a0b12d3e4f56789
-```
-
----
-
-## Deployment Cache
-
-Every completed `mintlify trigger` run appends a record to:
-
-```
-~/.daily-summary/mintlify-deployments.json
-```
-
-Each record stores the status ID, project ID, trigger time, mode, branch, final status, subdomain, Mintlify summary, and file-change data.
-
-View the cache:
-
-```bash
-daily-summary mintlify history
-daily-summary mintlify history --limit 50
-```
-
----
-
-## LLM Deployment Summary
-
-```bash
-daily-summary mintlify summary --since 7d
-```
-
-Gemini reads the cached deployment records for the time window and produces a bullet-point summary of what changed in the docs. If file-change data is available, it names specific files and sections:
-
-```
-- Added OAuth2 provider API reference and usage examples to src/auth/provider.mdx
-- Updated quickstart guide to reflect new PKCE flow steps
-- Fixed 3 broken internal navigation links across the guides section
-- Deployed 1 production release covering all recent preview changes
-```
-
-:::note File data availability
-File-change data (`filesChanged`) is only present when the deployment was triggered by a GitHub push that Mintlify processed. For API-triggered deployments, Mintlify does not expose commit details. In that case, the summary focuses on deployment activity (how many, when, which branch) instead of file changes.
-
-Pass `--raw` to skip the LLM and print the raw file table instead.
-:::
-
----
-
-## Workflow Example
-
-A typical docs-update workflow:
-
-```bash
-# 1. Make doc changes, push branch
-git push origin feature/new-api-docs
-
-# 2. Trigger a preview deploy
-daily-summary mintlify trigger --branch feature/new-api-docs
-
-# 3. Review the preview URL printed in the output
-# 4. Once approved, deploy to production
-daily-summary mintlify trigger --production
-
-# 5. Get an AI summary of this week's doc changes
-daily-summary mintlify summary --since 7d
-```
-
----
-
-## Troubleshooting
-
-| Problem | Fix |
-|---|---|
-| `MINTLIFY_API_KEY is not set` | Export the variable or run `daily-summary config set integrations.mintlify.apiKey`. |
-| `Mintlify project ID is not set` | Pass `--project-id <id>` or run `daily-summary config set integrations.mintlify.projectId`. |
-| `Could not determine branch for preview` | Pass `--branch <name>` explicitly. |
-| Deploy times out | The default timeout is 5 minutes. For large sites, check the Mintlify dashboard and use `mintlify status` to poll manually. |
-| No file data in summary | Deployment was API-triggered; Mintlify doesn't expose commit data for these. Use `--raw` for activity-level output. |
-</file>
-
-<file path="website/docs/development.md">
----
-id: development
-title: Development
-sidebar_label: Development
-sidebar_position: 5
----
-
-# Development & Contributing
-
-## Prerequisites
-
-- Node.js ≥ 18
-- npm
-- Git
-
-## Local Setup
-
-```bash
-git clone https://github.com/vedantnandoskar/daily-commit-summarizer.git
-cd daily-commit-summarizer
-npm install
-cp .env.example .env
-```
-
-Edit `.env`:
-
-```bash
-GEMINI_API_KEY=AIza...
-GEMINI_MODEL=gemini-3.1-flash-lite
-```
-
-## Running Without Building
-
-```bash
-# Any command via tsx (no compile step needed)
-npm run dev -- doctor
-npm run dev -- run --repo . --since 24h --no-edit
-npm run dev -- docs --since 7d --no-review --no-llm
-```
-
-`tsx` compiles TypeScript on-the-fly. This is the fastest iteration loop.
-
-## Build & Run Compiled Output
-
-```bash
-npm run build        # tsc → dist/, marks dist/bin/daily-summary.js executable
-npm start -- doctor  # runs node dist/bin/daily-summary.js
-```
-
-## Testing
-
-```bash
-npm test            # vitest run (all *.test.ts files in src/)
-npm run typecheck   # tsc --noEmit (no compilation, just type checking)
-```
-
-Tests are co-located with source files (`*.test.ts`). Run a specific test file:
-
-```bash
-npx vitest run src/git/normalizer.test.ts
-```
-
-Watch mode during development:
-
-```bash
-npx vitest
-```
-
-## Project Structure
-
-```
-src/
-├── bin/
-│   └── daily-summary.ts     Entry point — imports cli/index
-├── cli/
-│   ├── index.ts             Commander program setup & command registration
-│   ├── review.ts            Editor review helper (opens $EDITOR, handles no-changes prompt)
-│   └── commands/
-│       ├── run.ts           Main summarization pipeline
-│       ├── docs.ts          Doc-task detection and review pipeline
-│       ├── mintlify.ts      Mintlify subcommands (trigger/status/history/summary)
-│       ├── config.ts        config init/show/get/set
-│       ├── doctor.ts        Config validation and API ping
-│       ├── export.ts        Re-export/open last report
-│       ├── history.ts       List or open saved reports
-│       └── schedule.ts      macOS LaunchAgent / Linux crontab setup
-├── config/
-│   ├── loader.ts            Config merge logic, env file loading, masking, writeEnvKey
-│   └── types.ts             Config, LLMConfig, OutputConfig, IntegrationsConfig types
-├── docs/
-│   ├── detector.ts          7 signal-detection rules for doc impact
-│   ├── generator.ts         DocTask generation with templates or LLM enrichment
-│   ├── exporter.ts          Markdown/JSON export, docs-repo push
-│   └── types.ts             DocSignal, DocTask, DocTaskSeverity types
-├── git/
-│   ├── ingestion.ts         git log + git show → Commit[]
-│   └── normalizer.ts        Noise filtering, categorization, diff budget limiting → NormalizedCommit[]
-├── integrations/
-│   ├── extractor.ts         Linear/GitHub issue ref extraction from text and branch names
-│   ├── types.ts             IssueRef, LinearIssue, EnrichedCommit, TicketGroup
-│   └── linear/
-│       └── client.ts        Linear SDK wrapper (fetchIssues, createIssue, listTeams)
-│   └── mintlify/
-│       ├── deploy.ts        MintlifyDeployClient (trigger, poll, status)
-│       ├── cache.ts         Local deployment record cache
-│       └── types.ts         MintlifyStatusResponse, MintlifyDeployRecord types
-├── llm/
-│   ├── gemini.ts            GeminiProvider (summarize, rawPrompt)
-│   └── prompts.ts           buildSummarizationPrompt, buildDeploymentSummaryPrompt
-└── report/
-    ├── generator.ts         generateReport, buildTicketSection, buildDocsImpactSection
-    ├── exporter.ts          exportReport, getLastReportPath, listAllReports
-    └── html.ts              buildHtml (standalone styled HTML report)
-```
-
-## Architecture Principles
-
-- **Command handlers orchestrate; domain modules do the work.** `run.ts` calls `ingestCommits`, `normalizeDiff`, `GeminiProvider.summarize`, `generateReport`, `exportReport` — it never touches git or file I/O directly.
-- **Git ingestion and LLM prompting are separate.** `ingestion.ts` only runs git commands. `prompts.ts` only builds strings. Neither knows about the other.
-- **Report generation is separate from export.** `generator.ts` returns a `Report` object; `exporter.ts` writes files. This keeps HTML rendering, Markdown rendering, and file I/O decoupled.
-- **Integrations are optional and isolated.** Removing `integrations/linear` would not break any other module. Same for Mintlify.
-
-## Adding a New Command
-
-1. Create `src/cli/commands/my-command.ts` and export a function.
-2. Import it in `src/cli/index.ts` and register it with Commander.
-3. Add tests if the logic is non-trivial.
-
-Example skeleton:
-
-```typescript
-// src/cli/commands/my-command.ts
-import { loadConfig } from '../../config/loader';
-
-interface MyCommandOptions {
-  flag?: boolean;
+<file path="website/src/pages/index.tsx">
+import React from 'react';
+import clsx from 'clsx';
+import Link from '@docusaurus/Link';
+import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
+import Layout from '@theme/Layout';
+import Heading from '@theme/Heading';
+import styles from './index.module.css';
+
+type FeatureItem = {
+  title: string;
+  emoji: string;
+  description: React.ReactNode;
+};
+
+const features: FeatureItem[] = [
+  {
+    title: 'AI-Powered Stand-ups',
+    emoji: '🤖',
+    description: (
+      <>
+        Scans git commits for any time window and generates a polished,
+        grouped stand-up summary using Gemini — categorised into features,
+        fixes, refactors, and more.
+      </>
+    ),
+  },
+  {
+    title: 'Linear Integration',
+    emoji: '📋',
+    description: (
+      <>
+        Enriches summaries with Linear issue metadata extracted from commit
+        messages and branch names. Group commits by issue, see status,
+        priority, and sprint — and create issues directly from the CLI.
+      </>
+    ),
+  },
+  {
+    title: 'Doc-Task Detection',
+    emoji: '📝',
+    description: (
+      <>
+        Automatically detects commits that need documentation follow-up —
+        new exports, CLI flags, breaking changes, schema changes — and
+        generates a reviewable task list with LLM-enriched action items.
+      </>
+    ),
+  },
+  {
+    title: 'Mintlify Deployments',
+    emoji: '🚀',
+    description: (
+      <>
+        Trigger, poll, and track Mintlify documentation deployments from
+        the CLI. View deployment history, check status by ID, and get an
+        AI-powered summary of what changed in your docs.
+      </>
+    ),
+  },
+  {
+    title: 'Flexible Output',
+    emoji: '📄',
+    description: (
+      <>
+        Export reports as Markdown, styled HTML, or both. Reports are saved
+        to <code>~/.daily-summary/reports/</code> and accessible via
+        the <code>history</code> and <code>export</code> commands.
+      </>
+    ),
+  },
+  {
+    title: 'Zero Config to Start',
+    emoji: '⚡',
+    description: (
+      <>
+        Run <code>daily-summary config init</code> for a 30-second setup
+        wizard, then <code>daily-summary run</code>. Supports repo-local and
+        global config files for team-wide defaults.
+      </>
+    ),
+  },
+];
+
+function Feature({ title, emoji, description }: FeatureItem) {
+  return (
+    <div className={clsx('col col--4', styles.feature)}>
+      <div className={styles.featureEmoji}>{emoji}</div>
+      <div className="padding-horiz--md">
+        <Heading as="h3">{title}</Heading>
+        <p>{description}</p>
+      </div>
+    </div>
+  );
 }
 
-export async function myCommand(options: MyCommandOptions): Promise<void> {
-  const config = loadConfig();
-  // ...
+function HomepageFeatures() {
+  return (
+    <section className={styles.features}>
+      <div className="container">
+        <div className="row">
+          {features.map((props, idx) => (
+            <Feature key={idx} {...props} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
 }
-```
 
-```typescript
-// src/cli/index.ts
-import { myCommand } from './commands/my-command';
+function HomepageHero() {
+  const { siteConfig } = useDocusaurusContext();
+  return (
+    <header className={clsx('hero hero--primary', styles.heroBanner)}>
+      <div className="container">
+        <Heading as="h1" className="hero__title">
+          {siteConfig.title}
+        </Heading>
+        <p className="hero__subtitle">{siteConfig.tagline}</p>
 
-program
-  .command('my-command')
-  .description('Does something useful')
-  .option('--flag', 'enable a thing')
-  .action(async (options) => {
-    await myCommand({ flag: options.flag });
-  });
-```
+        <div className={styles.quickInstall}>
+          <code className={styles.installCmd}>npm install -g daily-commit-summarizer</code>
+        </div>
 
-## Adding a Doc-Signal Detection Rule
-
-Doc signals are detected in `src/docs/detector.ts`. Each rule implements:
-
-```typescript
-interface DetectionRule {
-  name: string;
-  severity: 'high' | 'medium' | 'low';
-  category: DocTaskCategory;
-  run: (commit: NormalizedCommit) => Array<{ file: string; pattern: string; diffHunk?: string }>;
+        <div className={styles.buttons}>
+          <Link
+            className="button button--secondary button--lg"
+            to="/docs/introduction">
+            Get Started →
+          </Link>
+          <Link
+            className={clsx('button button--outline button--lg', styles.buttonGhost)}
+            to="https://github.com/Vedant1202/daily-work-summarizer">
+            View on GitHub
+          </Link>
+        </div>
+      </div>
+    </header>
+  );
 }
-```
 
-Add your rule to the `RULES` array. The `run` method returns an empty array if the rule doesn't match, or one entry per detected file.
+export default function Home(): React.ReactElement {
+  return (
+    <Layout
+      title="daily-commit-summarizer"
+      description="CLI that turns git history into polished daily stand-up summaries using Gemini AI, with Linear integration and doc-task detection.">
+      <HomepageHero />
+      <main>
+        <HomepageFeatures />
+        <section className={styles.exampleSection}>
+          <div className="container">
+            <div className="row">
+              <div className="col col--6">
+                <Heading as="h2">From git log to stand-up in seconds</Heading>
+                <p>
+                  Point <code>daily-summary run</code> at any local repo, choose your
+                  time window, and get a structured report instantly. No server,
+                  no account required — just a Gemini API key.
+                </p>
+                <ul>
+                  <li>Works on any local git repository</li>
+                  <li>Filters lock files, binaries, and build output automatically</li>
+                  <li>Summarises features, fixes, refactors, tests, docs, and more</li>
+                  <li>Exports Markdown and styled HTML</li>
+                </ul>
+                <Link className="button button--primary" to="/docs/installation">
+                  Install in 2 minutes
+                </Link>
+              </div>
+              <div className="col col--6">
+                <pre className={styles.exampleOutput}>{`$ daily-summary run --since 24h --no-edit
 
-## Before Opening a PR
-
-```bash
-npm run typecheck
-npm test
-```
-
-Both must pass with no errors.
-</file>
-
-<file path="website/docs/installation.md">
----
-id: installation
-title: Installation
-sidebar_label: Installation
-sidebar_position: 2
----
-
-# Installation
-
-## Prerequisites
-
-| Requirement | Version | Notes |
-|---|---|---|
-| Node.js | ≥ 18 | Check with `node --version` |
-| Git | any | Must be on `PATH` |
-| Gemini API key | — | [Get one free at Google AI Studio](https://aistudio.google.com/apikey) |
-
-## Install from npm
-
-```bash
-npm install -g daily-commit-summarizer
-```
-
-Verify the install:
-
-```bash
-daily-summary --version
-```
-
-## Set Up Credentials
-
-Run the interactive setup wizard:
-
-```bash
-daily-summary config init
-```
-
-The wizard prompts for your Gemini API key, model name, and optionally a Linear API key. It saves everything to `~/.daily-summary/.env`.
-
-```
-Welcome to daily-summary setup.
-
-Config will be saved to: ~/.daily-summary/.env
-
-  Gemini API key (https://aistudio.google.com/apikey): AIza...
-  Gemini model name [default: gemini-3.1-flash-lite]:
-  Linear API key (optional — press Enter to skip):
-
-Config saved to ~/.daily-summary/.env
-
-Next: run  daily-summary doctor  to verify your setup.
-```
-
-Alternatively, export variables directly in your shell:
-
-```bash
-export GEMINI_API_KEY="AIza..."
-export GEMINI_MODEL="gemini-3.1-flash-lite"
-```
-
-## Verify the Setup
-
-```bash
-daily-summary doctor
-```
-
-A healthy setup looks like:
-
-```
-Checking configuration...
-  ✓ GEMINI_API_KEY        set
-  ✓ GEMINI_MODEL          gemini-3.1-flash-lite
-  - LINEAR_API_KEY        not set (optional — needed for --with-linear)
-  - linear.teamId         not set (optional — needed for --create-issues)
-
-Checking Mintlify...
-  - MINTLIFY_API_KEY      not set (optional — needed for mintlify trigger)
-  - mintlify.projectId    not set (optional — needed for mintlify trigger)
-
-Testing Gemini connection...
-  ✓ Gemini API            reachable (gemini-3.1-flash-lite)
-
-Testing Linear connection...
-  - Linear API            skipped (no key)
-
-Setup looks good. Run: daily-summary run --since 24h --no-edit
-```
-
-## Run Your First Report
-
-```bash
-daily-summary run --repo /path/to/your-project --since 24h --no-edit
-```
-
-Reports are saved to `~/.daily-summary/reports/` by default.
+Scanning commits on branch "main" since 24h...
+Found 6 commit(s). Normalizing diffs...
+Summarizing with gemini-2.0-flash-lite (medium)...
+Report saved to: ~/.daily-summary/reports/2026-05-18-myapp.md
 
 ---
 
-## Install from Source
+## Summary
 
-Use this path when contributing or evaluating the project locally.
+**Features**
+- Added OAuth2 provider support with PKCE flow
+- Introduced rate-limiting middleware on all API routes
 
-```bash
-git clone https://github.com/vedantnandoskar/daily-commit-summarizer.git
-cd daily-commit-summarizer
-npm install
-cp .env.example .env
-```
+**Bug Fixes**
+- Fixed null pointer in search endpoint when query is empty
 
-Edit `.env` and set at minimum:
-
-```bash
-GEMINI_API_KEY=your_api_key_here
-GEMINI_MODEL=gemini-3.1-flash-lite
-```
-
-Run without building:
-
-```bash
-npm run dev -- doctor
-npm run dev -- run --repo . --since 24h --no-edit
-```
-
-Build and run the compiled binary:
-
-```bash
-npm run build
-npm start -- run --repo . --since 24h --no-edit
-```
-
-Link for local CLI-style testing:
-
-```bash
-npm link
-daily-summary doctor
-```
-
-## Updating
-
-```bash
-npm update -g daily-commit-summarizer
-```
+**Chores**
+- Upgraded Node.js runtime to v20.10 LTS`}
+                </pre>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </Layout>
+  );
+}
 </file>
 
 <file path="website/docusaurus.config.ts">
@@ -5864,110 +5193,56 @@ website/
 .github/
 </file>
 
-<file path="src/cli/commands/config.ts">
-import readline from 'readline';
-import fs from 'fs';
-import { loadConfig, saveConfig, getNestedKey, maskConfig, writeEnvKey, GLOBAL_ENV_FILE } from '../../config/loader';
-import { ConfigScope } from '../../config/types';
-
-export function configShowCommand(): void {
-  const config = loadConfig();
-  const masked = maskConfig(config);
-  console.log(JSON.stringify(masked, null, 2));
-}
-
-export function configGetCommand(key: string): void {
-  const config = loadConfig();
-  const value = getNestedKey(config, key);
-  if (value === undefined) {
-    console.error(`Key not found: ${key}`);
-    process.exit(1);
-  }
-  console.log(String(value));
-}
-
-export function configSetCommand(key: string, value: string, options: { global?: boolean }): void {
-  const scope: ConfigScope = options.global ? 'global' : 'local';
-  saveConfig(scope, key, value);
-  console.log(`Set ${key} = ${value} (${scope})`);
-}
-
-function ask(rl: readline.Interface, question: string): Promise<string> {
-  return new Promise((resolve) => rl.question(question, resolve));
-}
-
-function maskValue(value: string): string {
-  if (value.length <= 8) return '***';
-  return value.slice(0, 4) + '***' + value.slice(-4);
-}
-
-function readExistingEnvKey(key: string): string {
-  try {
-    const content = fs.readFileSync(GLOBAL_ENV_FILE, 'utf8');
-    for (const line of content.split('\n')) {
-      const trimmed = line.trim();
-      if (trimmed.startsWith(`${key}=`)) {
-        return trimmed.slice(key.length + 1).replace(/^["']|["']$/g, '');
-      }
-    }
-  } catch {
-    // file doesn't exist
-  }
-  return '';
-}
-
-export async function configInitCommand(): Promise<void> {
-  if (!process.stdin.isTTY) {
-    console.error('config init requires an interactive terminal.');
-    console.error('Set keys directly: export GEMINI_API_KEY=<key>  or  daily-summary config set llm.apiKey <key>');
-    process.exit(1);
-  }
-
-  console.log('\nWelcome to daily-summary setup.\n');
-  console.log(`Config will be saved to: ${GLOBAL_ENV_FILE}\n`);
-
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-
-  try {
-    const fields: Array<{ key: string; label: string; required: boolean; default?: string }> = [
-      { key: 'GEMINI_API_KEY', label: 'Gemini API key (https://aistudio.google.com/apikey)', required: true },
-      { key: 'GEMINI_MODEL', label: 'Gemini model name', required: true, default: 'gemini-3.1-flash-lite' },
-      { key: 'LINEAR_API_KEY', label: 'Linear API key (optional — press Enter to skip)', required: false },
-    ];
-
-    const updates: Array<{ key: string; value: string }> = [];
-
-    for (const field of fields) {
-      const existing = readExistingEnvKey(field.key) || process.env[field.key] || '';
-      const displayDefault = existing
-        ? `current: ${maskValue(existing)}`
-        : field.default
-        ? `default: ${field.default}`
-        : '';
-      const hint = displayDefault ? ` [${displayDefault}]` : '';
-      const input = await ask(rl, `  ${field.label}${hint}: `);
-      const value = input.trim() || existing || field.default || '';
-
-      if (field.required && !value) {
-        console.error(`\n${field.key} is required. Run config init again to complete setup.`);
-        rl.close();
-        process.exit(1);
-      }
-
-      if (value) updates.push({ key: field.key, value });
-    }
-
-    rl.close();
-
-    for (const { key, value } of updates) {
-      writeEnvKey(GLOBAL_ENV_FILE, key, value);
-    }
-
-    console.log(`\nConfig saved to ${GLOBAL_ENV_FILE}`);
-    console.log('\nNext: run  daily-summary doctor  to verify your setup.');
-  } catch (err) {
-    rl.close();
-    throw err;
+<file path="1.json">
+{
+  "name": "daily-commit-summarizer",
+  "version": "0.1.0",
+  "description": "Generate daily stand-up summaries from git commits using Gemini AI",
+  "type": "commonjs",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "git",
+    "standup",
+    "summary",
+    "gemini",
+    "ai",
+    "cli",
+    "developer-tools",
+    "linear"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Vedant1202/daily-work-summarizer.git"
+  },
+  "bin": {
+    "daily-summary": "./dist/bin/daily-summary.js"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc && chmod +x dist/bin/daily-summary.js",
+    "prepare": "npm run build",
+    "dev": "tsx src/bin/daily-summary.ts",
+    "start": "node dist/bin/daily-summary.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "@linear/sdk": "^84.0.0",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0"
   }
 }
 </file>
@@ -7497,156 +6772,635 @@ export default function App() {
 }
 </file>
 
-<file path="website/docs/introduction.md">
+<file path="website/docs/commands/config.md">
 ---
-id: introduction
-title: Introduction
-sidebar_label: Introduction
-sidebar_position: 1
-slug: /introduction
+title: config
+sidebar_label: config
+sidebar_position: 4
 ---
 
-# Introduction
+# `config`
 
-`daily-commit-summarizer` is a TypeScript CLI that turns local Git history into polished daily stand-up summaries. It scans commits for a configurable time window, filters noise, asks Gemini to summarise the work, and exports Markdown or HTML reports — all from a single command.
+View and modify the configuration for `daily-summary`.
 
-## What It Does
-
-- **Stand-up summaries** — Scans a git repo for a window like `24h`, `2d`, or `1w` and generates a grouped, readable summary categorised by feature, fix, refactor, test, docs, chore, and performance.
-- **Linear enrichment** — Extracts issue identifiers from commit messages and branch names, fetches metadata from Linear, and groups commits under issue headings with status and priority.
-- **Doc-task detection** — Analyses diffs for documentation-impacting signals (new exports, CLI flags, breaking changes, schema changes) and produces a reviewable task list with LLM-enriched action items.
-- **Mintlify deployments** — Triggers, polls, and tracks Mintlify documentation deployments, with a deployment history cache and an AI-powered changelog summary.
-- **Flexible export** — Saves reports as Markdown, styled HTML, or both. Access them later with `history` and `export` commands.
-- **Scheduling** — Ships with macOS LaunchAgent and Linux crontab support for automated daily runs.
-
-## Architecture
-
-### Report Generation Flow
-
-```mermaid
-flowchart TD
-  A["CLI: daily-summary run"] --> B["Load configuration"]
-  B --> C["Read git commits"]
-  C --> D["Normalize diffs and categorize commits"]
-  D --> E["Generate summary with Gemini"]
-  E --> F{"--with-linear?"}
-  F -->|Yes| G["Fetch Linear issue metadata"]
-  F -->|No| H["Skip Linear enrichment"]
-  G --> I["Detect doc-impact signals"]
-  H --> I
-  I --> J["Render report Markdown"]
-  J --> K{"Editor review?"}
-  K -->|Yes| L["Open report in $EDITOR"]
-  K -->|No| M["Use generated report"]
-  L --> N["Export report"]
-  M --> N
-  N --> O["Write .md / .html files"]
+```bash
+daily-summary config <subcommand> [options]
 ```
 
-### Documentation Task Flow
+## `config init`
 
-```mermaid
-flowchart TD
-  A["CLI: daily-summary docs"] --> B["Load configuration"]
-  B --> C["Read git commits"]
-  C --> D["Normalize diffs"]
-  D --> E["Detect documentation signals"]
-  E --> F{"Signals found?"}
-  F -->|No| G["Exit — no tasks"]
-  F -->|Yes| H["Generate doc task candidates"]
-  H --> I{"LLM enabled?"}
-  I -->|Yes| J["Enrich descriptions with Gemini"]
-  I -->|No| K["Use template descriptions"]
-  J --> L["Interactive review (A/R/E/S)"]
-  K --> L
-  L --> M{"--create-issues?"}
-  M -->|Yes| N["Create Linear issues"]
-  M -->|No| O["Skip issue creation"]
-  N --> P["Export accepted tasks"]
-  O --> P
-  P --> Q["Write .md / .json files"]
+Interactive setup wizard. Prompts for API keys and model settings, then saves them to `~/.daily-summary/.env`.
+
+```bash
+daily-summary config init
 ```
 
-### Config Resolution Order
+Requires an interactive terminal (`stdin` must be a TTY). If you're in a non-interactive context, set values directly:
 
-```mermaid
-flowchart TD
-  A["Built-in defaults"] --> F["Merged config"]
-  B["~/.daily-summary/config.json"] --> F
-  C[".daily-summary.json (repo-local)"] --> F
-  D["~/.daily-summary/.env + ./.env"] --> E["process.env vars"]
-  E --> F
-  F --> G["Runtime config"]
+```bash
+export GEMINI_API_KEY="AIza..."
+# or
+daily-summary config set llm.apiKey "AIza..."
 ```
 
-Resolution priority (lowest → highest): built-in defaults → global JSON → local JSON → `.env` files → shell-exported environment variables. Shell-exported values override anything written in `.env` files.
+### Wizard fields
 
-### Web UI Flow
+| Field | Required | Default |
+|---|---|---|
+| Gemini API key | Yes | — |
+| Gemini model name | Yes | `gemini-3.1-flash-lite` |
+| Linear API key | No | — |
+| Mintlify API key | No | — |
+| Mintlify project ID | No | — |
 
-```mermaid
-flowchart TD
-  A["CLI: daily-summary ui"] --> B["Express server :7331"]
-  B --> C["Serves React SPA"]
-  C --> D["Browser opens http://localhost:7331"]
-  D --> E{"Page"}
-  E -->|Dashboard| F["POST /api/run → runCommand"]
-  E -->|Reports| G["GET /api/reports → report cache"]
-  E -->|Config| H["GET/POST /api/config → config files"]
-  E -->|Mintlify| I["GET/POST /api/mintlify/* → Mintlify API + local cache"]
-  E -->|Doctor| J["GET /api/doctor → connectivity checks"]
+Previously saved values are shown masked (e.g. `AIza***key`) — press Enter to keep them.
+
+---
+
+## `config show`
+
+Print the full merged configuration with API keys masked.
+
+```bash
+daily-summary config show
 ```
 
-## Generated Files
+```json
+{
+  "repoPath": ".",
+  "branch": "main",
+  "timeWindow": "24h",
+  "llm": {
+    "summaryLength": "medium",
+    "apiKey": "***",
+    "model": "gemini-3.1-flash-lite"
+  },
+  "output": {
+    "dir": "/Users/you/.daily-summary/reports"
+  },
+  "integrations": {
+    "linear": {
+      "apiKey": "***",
+      "teamId": "abc123"
+    },
+    "mintlify": {
+      "apiKey": "***",
+      "projectId": "my-project"
+    }
+  }
+}
+```
 
-| Output | Default location |
+---
+
+## `config get <key>`
+
+Read a single config value using a dot-path.
+
+```bash
+daily-summary config get <key>
+```
+
+### Examples
+
+```bash
+daily-summary config get output.dir
+# → /Users/you/.daily-summary/reports
+
+daily-summary config get llm.summaryLength
+# → medium
+
+daily-summary config get integrations.linear.teamId
+# → abc123
+```
+
+---
+
+## `config set <key> <value>`
+
+Write a config value. Defaults to repo-local (`.daily-summary.json`). Use `--global` for `~/.daily-summary/config.json`.
+
+```bash
+daily-summary config set <key> <value> [--global]
+```
+
+### Options
+
+| Flag | Description |
 |---|---|
-| Stand-up reports | `~/.daily-summary/reports/<date>-<repo>.md` and optionally `.html` |
-| Documentation tasks | `~/.daily-summary/doc-tasks/<date>-<repo>.md` and optionally `.json` |
-| Global secrets | `~/.daily-summary/.env` |
-| Global config | `~/.daily-summary/config.json` |
-| Mintlify deploy cache | `~/.daily-summary/mintlify-deployments.json` |
-| Schedule logs | `~/.daily-summary/logs/` |
+| `--global` | Write to `~/.daily-summary/config.json` instead of the repo-local `.daily-summary.json`. |
 
-## Source Layout
+### Examples
+
+```bash
+# Repo-local settings
+daily-summary config set branch main
+daily-summary config set timeWindow 48h
+daily-summary config set output.format both
+daily-summary config set llm.summaryLength long
+
+# Integrations
+daily-summary config set integrations.linear.teamId "team-abc123"
+daily-summary config set integrations.docsRepo.path "/path/to/docs-repo"
+daily-summary config set integrations.mintlify.projectId "my-project"
+
+# Global settings (shared across repos)
+daily-summary config set output.dir "~/.daily-summary/reports" --global
+daily-summary config set llm.summaryLength medium --global
+```
+
+:::tip Secrets vs config
+API keys should live in `~/.daily-summary/.env` (managed by `config init`) or shell environment variables — **not** in JSON config files. Use `config set` for non-secret settings like `branch`, `timeWindow`, `output.dir`.
+:::
+
+## Config file locations
+
+| File | Scope | Written by |
+|---|---|---|
+| `~/.daily-summary/.env` | Global secrets | `config init` |
+| `~/.daily-summary/config.json` | Global non-secrets | `config set --global` |
+| `.daily-summary.json` | Repo-local | `config set` |
+</file>
+
+<file path="website/docs/integrations/mintlify.md">
+---
+title: Mintlify
+sidebar_label: Mintlify
+sidebar_position: 2
+---
+
+# Mintlify Integration
+
+`daily-summary` can trigger, poll, and track [Mintlify](https://mintlify.com) documentation deployments from the CLI. Deployment records are cached locally and can be summarised with Gemini.
+
+## Setup
+
+### 1. Get your credentials
+
+- **API key** — Mintlify dashboard → Settings → API key (starts with `mint_`)
+- **Project ID** — Mintlify dashboard → your project's settings page
+
+### 2. Configure them
+
+**Option A — `config init` (recommended)**
+
+```bash
+daily-summary config init
+```
+
+The setup wizard prompts for `MINTLIFY_API_KEY` and `MINTLIFY_PROJECT_ID` alongside your other credentials and saves them to `~/.daily-summary/.env`.
+
+**Option B — manual**
+
+```bash
+export MINTLIFY_API_KEY="mint_..."
+export MINTLIFY_PROJECT_ID="my-project-id"
+# or persist:
+daily-summary config set integrations.mintlify.apiKey "mint_..."
+daily-summary config set integrations.mintlify.projectId "my-project-id"
+```
+
+---
+
+## Triggering Deployments
+
+### Preview deployment (default)
+
+```bash
+daily-summary mintlify trigger
+```
+
+Uses the current branch (auto-detected from git). Polls until the deployment finishes and prints the result.
+
+### Production deployment
+
+```bash
+daily-summary mintlify trigger --production
+```
+
+### CI / fire-and-forget
+
+For CI pipelines where you don't want to block on the result:
+
+```bash
+daily-summary mintlify trigger --production --fire-and-forget
+# Output:
+#   statusId:   64a2fc3e8a0b12d3e4f56789
+#   previewUrl: https://preview.mintlify.app/...
+```
+
+The `statusId` is saved to `~/.daily-summary/mintlify-deployments.json` immediately with `finalStatus: queued`. The record updates to `success` or `failure` in the background once polling completes — so `mintlify history` always reflects in-progress deployments.
+
+You can check the result later:
+
+```bash
+daily-summary mintlify status 64a2fc3e8a0b12d3e4f56789
+```
+
+---
+
+## Deployment Cache
+
+Every completed `mintlify trigger` run appends a record to:
+
+```
+~/.daily-summary/mintlify-deployments.json
+```
+
+Each record stores the status ID, project ID, trigger time, mode, branch, final status, subdomain, Mintlify summary, and file-change data.
+
+View the cache:
+
+```bash
+daily-summary mintlify history
+daily-summary mintlify history --limit 50
+```
+
+---
+
+## LLM Deployment Summary
+
+```bash
+daily-summary mintlify summary --since 7d
+```
+
+Gemini reads the cached deployment records for the time window and produces a bullet-point summary of what changed in the docs. If file-change data is available, it names specific files and sections:
+
+```
+- Added OAuth2 provider API reference and usage examples to src/auth/provider.mdx
+- Updated quickstart guide to reflect new PKCE flow steps
+- Fixed 3 broken internal navigation links across the guides section
+- Deployed 1 production release covering all recent preview changes
+```
+
+:::note File data availability
+File-change data (`filesChanged`) is only present when the deployment was triggered by a GitHub push that Mintlify processed. For API-triggered deployments, Mintlify does not expose commit details. In that case, the summary focuses on deployment activity (how many, when, which branch) instead of file changes.
+
+Pass `--raw` to skip the LLM and print the raw file table instead.
+:::
+
+---
+
+## Workflow Example
+
+A typical docs-update workflow:
+
+```bash
+# 1. Make doc changes, push branch
+git push origin feature/new-api-docs
+
+# 2. Trigger a preview deploy
+daily-summary mintlify trigger --branch feature/new-api-docs
+
+# 3. Review the preview URL printed in the output
+# 4. Once approved, deploy to production
+daily-summary mintlify trigger --production
+
+# 5. Get an AI summary of this week's doc changes
+daily-summary mintlify summary --since 7d
+```
+
+---
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `MINTLIFY_API_KEY is not set` | Export the variable or run `daily-summary config set integrations.mintlify.apiKey`. |
+| `Mintlify project ID is not set` | Pass `--project-id <id>` or run `daily-summary config set integrations.mintlify.projectId`. |
+| `Could not determine branch for preview` | Pass `--branch <name>` explicitly. |
+| Deploy times out | The default timeout is 5 minutes. For large sites, check the Mintlify dashboard and use `mintlify status` to poll manually. |
+| No file data in summary | Deployment was API-triggered; Mintlify doesn't expose commit data for these. Use `--raw` for activity-level output. |
+</file>
+
+<file path="website/docs/development.md">
+---
+id: development
+title: Development
+sidebar_label: Development
+sidebar_position: 5
+---
+
+# Development & Contributing
+
+## Prerequisites
+
+- Node.js ≥ 18
+- npm
+- Git
+
+## Local Setup
+
+```bash
+git clone https://github.com/Vedant1202/daily-work-summarizer.git
+cd daily-work-summarizer
+npm install
+cp .env.example .env
+```
+
+Edit `.env`:
+
+```bash
+GEMINI_API_KEY=AIza...
+GEMINI_MODEL=gemini-3.1-flash-lite
+```
+
+## Running Without Building
+
+```bash
+# Any command via tsx (no compile step needed)
+npm run dev -- doctor
+npm run dev -- run --repo . --since 24h --no-edit
+npm run dev -- docs --since 7d --no-review --no-llm
+```
+
+`tsx` compiles TypeScript on-the-fly. This is the fastest iteration loop.
+
+## Build & Run Compiled Output
+
+```bash
+npm run build        # tsc → dist/, marks dist/bin/daily-summary.js executable
+npm start -- doctor  # runs node dist/bin/daily-summary.js
+```
+
+## Testing
+
+```bash
+npm test            # vitest run (all *.test.ts files in src/)
+npm run typecheck   # tsc --noEmit (no compilation, just type checking)
+```
+
+Tests are co-located with source files (`*.test.ts`). Run a specific test file:
+
+```bash
+npx vitest run src/git/normalizer.test.ts
+```
+
+Watch mode during development:
+
+```bash
+npx vitest
+```
+
+## Project Structure
 
 ```
 src/
-├── bin/daily-summary.ts       CLI entry point
+├── bin/
+│   └── daily-summary.ts     Entry point — imports cli/index
 ├── cli/
-│   ├── index.ts               Commander command registration
-│   ├── review.ts              Editor-based review helper
-│   └── commands/              run, ui, docs, mintlify, config, doctor, export, history, schedule
+│   ├── index.ts             Commander program setup & command registration
+│   ├── review.ts            Editor review helper (opens $EDITOR, handles no-changes prompt)
+│   └── commands/
+│       ├── run.ts           Main summarization pipeline
+│       ├── docs.ts          Doc-task detection and review pipeline
+│       ├── mintlify.ts      Mintlify subcommands (trigger/status/history/summary)
+│       ├── config.ts        config init/show/get/set
+│       ├── doctor.ts        Config validation and API ping
+│       ├── export.ts        Re-export/open last report
+│       ├── history.ts       List or open saved reports
+│       └── schedule.ts      macOS LaunchAgent / Linux crontab setup
 ├── config/
-│   ├── loader.ts              Defaults, env files, JSON config, masking
-│   └── types.ts               Runtime configuration types
+│   ├── loader.ts            Config merge logic, env file loading, masking, writeEnvKey
+│   └── types.ts             Config, LLMConfig, OutputConfig, IntegrationsConfig types
 ├── docs/
-│   ├── detector.ts            Documentation-impact signal rules
-│   ├── generator.ts           Doc task generation + optional LLM enrichment
-│   └── exporter.ts            Markdown/JSON export and docs-repo push
+│   ├── detector.ts          7 signal-detection rules for doc impact
+│   ├── generator.ts         DocTask generation with templates or LLM enrichment
+│   ├── exporter.ts          Markdown/JSON export, docs-repo push
+│   └── types.ts             DocSignal, DocTask, DocTaskSeverity types
 ├── git/
-│   ├── ingestion.ts           git log/show collection
-│   └── normalizer.ts          Diff cleanup, categorisation, budget limiting
+│   ├── ingestion.ts         git log + git show → Commit[]
+│   └── normalizer.ts        Noise filtering, categorization, diff budget limiting → NormalizedCommit[]
 ├── integrations/
-│   ├── extractor.ts           Issue reference extraction
-│   ├── linear/client.ts       Linear API wrapper
-│   └── mintlify/              Deploy client, types, deployment cache
+│   ├── extractor.ts         Linear/GitHub issue ref extraction from text and branch names
+│   ├── types.ts             IssueRef, LinearIssue, EnrichedCommit, TicketGroup
+│   └── linear/
+│       └── client.ts        Linear SDK wrapper (fetchIssues, createIssue, listTeams)
+│   └── mintlify/
+│       ├── deploy.ts        MintlifyDeployClient (trigger, poll, status)
+│       ├── cache.ts         Local deployment record cache
+│       └── types.ts         MintlifyStatusResponse, MintlifyDeployRecord types
 ├── llm/
-│   ├── gemini.ts              Gemini provider
-│   └── prompts.ts             Prompt construction
-├── report/
-│   ├── generator.ts           Report model + Markdown rendering
-│   ├── exporter.ts            Report file writing and lookup
-│   └── html.ts                HTML report rendering
-└── ui/
-    ├── server.ts              Express app factory
-    └── routes/                API routes: run, reports, config, mintlify, doctor
-ui/                            React + Vite frontend (served by the Express server)
+│   ├── gemini.ts            GeminiProvider (summarize, rawPrompt)
+│   └── prompts.ts           buildSummarizationPrompt, buildDeploymentSummaryPrompt
+└── report/
+    ├── generator.ts         generateReport, buildTicketSection, buildDocsImpactSection
+    ├── exporter.ts          exportReport, getLastReportPath, listAllReports
+    └── html.ts              buildHtml (standalone styled HTML report)
 ```
 
-## Next Steps
+## Architecture Principles
 
-- [Installation →](./installation.md)
-- [Run your first summary →](./commands/run.md)
+- **Command handlers orchestrate; domain modules do the work.** `run.ts` calls `ingestCommits`, `normalizeDiff`, `GeminiProvider.summarize`, `generateReport`, `exportReport` — it never touches git or file I/O directly.
+- **Git ingestion and LLM prompting are separate.** `ingestion.ts` only runs git commands. `prompts.ts` only builds strings. Neither knows about the other.
+- **Report generation is separate from export.** `generator.ts` returns a `Report` object; `exporter.ts` writes files. This keeps HTML rendering, Markdown rendering, and file I/O decoupled.
+- **Integrations are optional and isolated.** Removing `integrations/linear` would not break any other module. Same for Mintlify.
+
+## Adding a New Command
+
+1. Create `src/cli/commands/my-command.ts` and export a function.
+2. Import it in `src/cli/index.ts` and register it with Commander.
+3. Add tests if the logic is non-trivial.
+
+Example skeleton:
+
+```typescript
+// src/cli/commands/my-command.ts
+import { loadConfig } from '../../config/loader';
+
+interface MyCommandOptions {
+  flag?: boolean;
+}
+
+export async function myCommand(options: MyCommandOptions): Promise<void> {
+  const config = loadConfig();
+  // ...
+}
+```
+
+```typescript
+// src/cli/index.ts
+import { myCommand } from './commands/my-command';
+
+program
+  .command('my-command')
+  .description('Does something useful')
+  .option('--flag', 'enable a thing')
+  .action(async (options) => {
+    await myCommand({ flag: options.flag });
+  });
+```
+
+## Adding a Doc-Signal Detection Rule
+
+Doc signals are detected in `src/docs/detector.ts`. Each rule implements:
+
+```typescript
+interface DetectionRule {
+  name: string;
+  severity: 'high' | 'medium' | 'low';
+  category: DocTaskCategory;
+  run: (commit: NormalizedCommit) => Array<{ file: string; pattern: string; diffHunk?: string }>;
+}
+```
+
+Add your rule to the `RULES` array. The `run` method returns an empty array if the rule doesn't match, or one entry per detected file.
+
+## Before Opening a PR
+
+```bash
+npm run typecheck
+npm test
+```
+
+Both must pass with no errors.
+</file>
+
+<file path="website/docs/installation.md">
+---
+id: installation
+title: Installation
+sidebar_label: Installation
+sidebar_position: 2
+---
+
+# Installation
+
+## Prerequisites
+
+| Requirement | Version | Notes |
+|---|---|---|
+| Node.js | ≥ 18 | Check with `node --version` |
+| Git | any | Must be on `PATH` |
+| Gemini API key | — | [Get one free at Google AI Studio](https://aistudio.google.com/apikey) |
+
+## Install from npm
+
+```bash
+npm install -g daily-work-summarizer
+```
+
+Verify the install:
+
+```bash
+daily-summary --version
+```
+
+## Set Up Credentials
+
+Run the interactive setup wizard:
+
+```bash
+daily-summary config init
+```
+
+The wizard prompts for your Gemini API key, model name, and optionally a Linear API key and Mintlify credentials. It saves everything to `~/.daily-summary/.env`.
+
+```
+Welcome to daily-summary setup.
+
+Config will be saved to: ~/.daily-summary/.env
+
+  Gemini API key (https://aistudio.google.com/apikey): AIza...
+  Gemini model name [default: gemini-3.1-flash-lite]:
+  Linear API key (optional — press Enter to skip):
+  Mintlify API key (optional — press Enter to skip):
+  Mintlify project ID (optional — press Enter to skip):
+
+Config saved to ~/.daily-summary/.env
+
+Next: run  daily-summary doctor  to verify your setup.
+```
+
+Alternatively, export variables directly in your shell:
+
+```bash
+export GEMINI_API_KEY="AIza..."
+export GEMINI_MODEL="gemini-3.1-flash-lite"
+```
+
+## Verify the Setup
+
+```bash
+daily-summary doctor
+```
+
+A healthy setup looks like:
+
+```
+Checking configuration...
+  ✓ GEMINI_API_KEY        set
+  ✓ GEMINI_MODEL          gemini-3.1-flash-lite
+  - LINEAR_API_KEY        not set (optional — needed for --with-linear)
+  - linear.teamId         not set (optional — needed for --create-issues)
+
+Checking Mintlify...
+  - MINTLIFY_API_KEY      not set (optional — needed for mintlify trigger)
+  - mintlify.projectId    not set (optional — needed for mintlify trigger)
+
+Testing Gemini connection...
+  ✓ Gemini API            reachable (gemini-3.1-flash-lite)
+
+Testing Linear connection...
+  - Linear API            skipped (no key)
+
+Setup looks good. Run: daily-summary run --since 24h --no-edit
+```
+
+## Run Your First Report
+
+```bash
+daily-summary run --repo /path/to/your-project --since 24h --no-edit
+```
+
+Reports are saved to `~/.daily-summary/reports/` by default.
+
+---
+
+## Install from Source
+
+Use this path when contributing or evaluating the project locally.
+
+```bash
+git clone https://github.com/Vedant1202/daily-work-summarizer.git
+cd daily-work-summarizer
+npm install
+cp .env.example .env
+```
+
+Edit `.env` and set at minimum:
+
+```bash
+GEMINI_API_KEY=your_api_key_here
+GEMINI_MODEL=gemini-3.1-flash-lite
+```
+
+Run without building:
+
+```bash
+npm run dev -- doctor
+npm run dev -- run --repo . --since 24h --no-edit
+```
+
+Build and run the compiled binary:
+
+```bash
+npm run build
+npm start -- run --repo . --since 24h --no-edit
+```
+
+Link for local CLI-style testing:
+
+```bash
+npm link
+daily-summary doctor
+```
+
+## Updating
+
+```bash
+npm update -g daily-work-summarizer
+```
 </file>
 
 <file path="tsconfig.json">
@@ -7665,6 +7419,116 @@ ui/                            React + Vite frontend (served by the Express serv
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "agent-skills", "ui"]
+}
+</file>
+
+<file path="src/cli/commands/config.ts">
+import readline from 'readline';
+import fs from 'fs';
+import { loadConfig, saveConfig, getNestedKey, maskConfig, writeEnvKey, GLOBAL_ENV_FILE } from '../../config/loader';
+import { ConfigScope } from '../../config/types';
+
+export function configShowCommand(): void {
+  const config = loadConfig();
+  const masked = maskConfig(config);
+  console.log(JSON.stringify(masked, null, 2));
+}
+
+export function configGetCommand(key: string): void {
+  const config = loadConfig();
+  const value = getNestedKey(config, key);
+  if (value === undefined) {
+    console.error(`Key not found: ${key}`);
+    process.exit(1);
+  }
+  console.log(String(value));
+}
+
+export function configSetCommand(key: string, value: string, options: { global?: boolean }): void {
+  const scope: ConfigScope = options.global ? 'global' : 'local';
+  saveConfig(scope, key, value);
+  console.log(`Set ${key} = ${value} (${scope})`);
+}
+
+function ask(rl: readline.Interface, question: string): Promise<string> {
+  return new Promise((resolve) => rl.question(question, resolve));
+}
+
+function maskValue(value: string): string {
+  if (value.length <= 8) return '***';
+  return value.slice(0, 4) + '***' + value.slice(-4);
+}
+
+function readExistingEnvKey(key: string): string {
+  try {
+    const content = fs.readFileSync(GLOBAL_ENV_FILE, 'utf8');
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith(`${key}=`)) {
+        return trimmed.slice(key.length + 1).replace(/^["']|["']$/g, '');
+      }
+    }
+  } catch {
+    // file doesn't exist
+  }
+  return '';
+}
+
+export async function configInitCommand(): Promise<void> {
+  if (!process.stdin.isTTY) {
+    console.error('config init requires an interactive terminal.');
+    console.error('Set keys directly: export GEMINI_API_KEY=<key>  or  daily-summary config set llm.apiKey <key>');
+    process.exit(1);
+  }
+
+  console.log('\nWelcome to daily-summary setup.\n');
+  console.log(`Config will be saved to: ${GLOBAL_ENV_FILE}\n`);
+
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+
+  try {
+    const fields: Array<{ key: string; label: string; required: boolean; default?: string }> = [
+      { key: 'GEMINI_API_KEY', label: 'Gemini API key (https://aistudio.google.com/apikey)', required: true },
+      { key: 'GEMINI_MODEL', label: 'Gemini model name', required: true, default: 'gemini-3.1-flash-lite' },
+      { key: 'LINEAR_API_KEY',       label: 'Linear API key (optional — press Enter to skip)',      required: false },
+      { key: 'MINTLIFY_API_KEY',    label: 'Mintlify API key (optional — press Enter to skip)',    required: false },
+      { key: 'MINTLIFY_PROJECT_ID', label: 'Mintlify project ID (optional — press Enter to skip)', required: false },
+    ];
+
+    const updates: Array<{ key: string; value: string }> = [];
+
+    for (const field of fields) {
+      const existing = readExistingEnvKey(field.key) || process.env[field.key] || '';
+      const displayDefault = existing
+        ? `current: ${maskValue(existing)}`
+        : field.default
+        ? `default: ${field.default}`
+        : '';
+      const hint = displayDefault ? ` [${displayDefault}]` : '';
+      const input = await ask(rl, `  ${field.label}${hint}: `);
+      const value = input.trim() || existing || field.default || '';
+
+      if (field.required && !value) {
+        console.error(`\n${field.key} is required. Run config init again to complete setup.`);
+        rl.close();
+        process.exit(1);
+      }
+
+      if (value) updates.push({ key: field.key, value });
+    }
+
+    rl.close();
+
+    for (const { key, value } of updates) {
+      writeEnvKey(GLOBAL_ENV_FILE, key, value);
+    }
+
+    console.log(`\nConfig saved to ${GLOBAL_ENV_FILE}`);
+    console.log('\nNext: run  daily-summary doctor  to verify your setup.');
+  } catch (err) {
+    rl.close();
+    throw err;
+  }
 }
 </file>
 
@@ -7826,6 +7690,158 @@ Rules:
 - No preamble — start directly with the first bullet`
   }`;
 }
+</file>
+
+<file path="website/docs/introduction.md">
+---
+id: introduction
+title: Introduction
+sidebar_label: Introduction
+sidebar_position: 1
+slug: /introduction
+---
+
+# Introduction
+
+`daily-work-summarizer` is a TypeScript CLI that turns local Git history into polished daily stand-up summaries. It scans commits for a configurable time window, filters noise, asks Gemini to summarise the work, and exports Markdown or HTML reports — all from a single command.
+
+## What It Does
+
+- **Stand-up summaries** — Scans a git repo for a window like `24h`, `2d`, or `1w` and generates a grouped, readable summary categorised by feature, fix, refactor, test, docs, chore, and performance.
+- **Linear enrichment** — Extracts issue identifiers from commit messages and branch names, fetches metadata from Linear, and groups commits under issue headings with status and priority.
+- **Doc-task detection** — Analyses diffs for documentation-impacting signals (new exports, CLI flags, breaking changes, schema changes) and produces a reviewable task list with LLM-enriched action items.
+- **Mintlify deployments** — Triggers, polls, and tracks Mintlify documentation deployments, with a deployment history cache and an AI-powered changelog summary.
+- **Flexible export** — Saves reports as Markdown, styled HTML, or both. Access them later with `history` and `export` commands.
+- **Scheduling** — Ships with macOS LaunchAgent and Linux crontab support for automated daily runs.
+
+## Architecture
+
+### Report Generation Flow
+
+```mermaid
+flowchart TD
+  A["CLI: daily-summary run"] --> B["Load configuration"]
+  B --> C["Read git commits"]
+  C --> D["Normalize diffs and categorize commits"]
+  D --> E["Generate summary with Gemini"]
+  E --> F{"--with-linear?"}
+  F -->|Yes| G["Fetch Linear issue metadata"]
+  F -->|No| H["Skip Linear enrichment"]
+  G --> I["Detect doc-impact signals"]
+  H --> I
+  I --> J["Render report Markdown"]
+  J --> K{"Editor review?"}
+  K -->|Yes| L["Open report in $EDITOR"]
+  K -->|No| M["Use generated report"]
+  L --> N["Export report"]
+  M --> N
+  N --> O["Write .md / .html files"]
+```
+
+### Documentation Task Flow
+
+```mermaid
+flowchart TD
+  A["CLI: daily-summary docs"] --> B["Load configuration"]
+  B --> C["Read git commits"]
+  C --> D["Normalize diffs"]
+  D --> E["Detect documentation signals"]
+  E --> F{"Signals found?"}
+  F -->|No| G["Exit — no tasks"]
+  F -->|Yes| H["Generate doc task candidates"]
+  H --> I{"LLM enabled?"}
+  I -->|Yes| J["Enrich descriptions with Gemini"]
+  I -->|No| K["Use template descriptions"]
+  J --> L["Interactive review (A/R/E/S)"]
+  K --> L
+  L --> M{"--create-issues?"}
+  M -->|Yes| N["Create Linear issues"]
+  M -->|No| O["Skip issue creation"]
+  N --> P["Export accepted tasks"]
+  O --> P
+  P --> Q["Write .md / .json files"]
+```
+
+### Config Resolution Order
+
+```mermaid
+flowchart TD
+  A["Built-in defaults"] --> F["Merged config"]
+  B["~/.daily-summary/config.json"] --> F
+  C[".daily-summary.json (repo-local)"] --> F
+  D["~/.daily-summary/.env + ./.env"] --> E["process.env vars"]
+  E --> F
+  F --> G["Runtime config"]
+```
+
+Resolution priority (lowest → highest): built-in defaults → global JSON → local JSON → `.env` files → shell-exported environment variables. Shell-exported values override anything written in `.env` files.
+
+### Web UI Flow
+
+```mermaid
+flowchart TD
+  A["CLI: daily-summary ui"] --> B["Express server :7331"]
+  B --> C["Serves React SPA"]
+  C --> D["Browser opens http://localhost:7331"]
+  D --> E{"Page"}
+  E -->|Dashboard| F["POST /api/run → runCommand"]
+  E -->|Reports| G["GET /api/reports → report cache"]
+  E -->|Config| H["GET/POST /api/config → config files"]
+  E -->|Mintlify| I["GET/POST /api/mintlify/* → Mintlify API + local cache"]
+  E -->|Doctor| J["GET /api/doctor → connectivity checks"]
+```
+
+## Generated Files
+
+| Output | Default location |
+|---|---|
+| Stand-up reports | `~/.daily-summary/reports/<date>-<repo>.md` and optionally `.html` |
+| Documentation tasks | `~/.daily-summary/doc-tasks/<date>-<repo>.md` and optionally `.json` |
+| Global secrets | `~/.daily-summary/.env` |
+| Global config | `~/.daily-summary/config.json` |
+| Mintlify deploy cache | `~/.daily-summary/mintlify-deployments.json` |
+| Schedule logs | `~/.daily-summary/logs/` |
+
+## Source Layout
+
+```
+src/
+├── bin/daily-summary.ts       CLI entry point
+├── cli/
+│   ├── index.ts               Commander command registration
+│   ├── review.ts              Editor-based review helper
+│   └── commands/              run, ui, docs, mintlify, config, doctor, export, history, schedule
+├── config/
+│   ├── loader.ts              Defaults, env files, JSON config, masking
+│   └── types.ts               Runtime configuration types
+├── docs/
+│   ├── detector.ts            Documentation-impact signal rules
+│   ├── generator.ts           Doc task generation + optional LLM enrichment
+│   └── exporter.ts            Markdown/JSON export and docs-repo push
+├── git/
+│   ├── ingestion.ts           git log/show collection
+│   └── normalizer.ts          Diff cleanup, categorisation, budget limiting
+├── integrations/
+│   ├── extractor.ts           Issue reference extraction
+│   ├── linear/client.ts       Linear API wrapper
+│   └── mintlify/              Deploy client, types, deployment cache
+├── llm/
+│   ├── gemini.ts              Gemini provider
+│   └── prompts.ts             Prompt construction
+├── report/
+│   ├── generator.ts           Report model + Markdown rendering
+│   ├── exporter.ts            Report file writing and lookup
+│   └── html.ts                HTML report rendering
+└── ui/
+    ├── server.ts              Express app factory
+    └── routes/                API routes: run, reports, config, mintlify, doctor
+ui/                            React + Vite frontend (served by the Express server)
+```
+
+## Next Steps
+
+- [Installation →](./installation.md)
+- [Run your first summary →](./commands/run.md)
 </file>
 
 <file path=".gitignore">
@@ -8702,74 +8718,6 @@ MINTLIFY_API_KEY=mint_your_key_here
 MINTLIFY_PROJECT_ID=your-project-id
 </file>
 
-<file path="package.json">
-{
-  "name": "daily-commit-summarizer",
-  "version": "0.2.1",
-  "description": "Generate daily stand-up summaries from git commits using Gemini AI",
-  "type": "commonjs",
-  "license": "MIT",
-  "homepage": "https://www.npmjs.com/package/daily-commit-summarizer",
-  "engines": {
-    "node": ">=18"
-  },
-  "keywords": [
-    "git",
-    "standup",
-    "summary",
-    "gemini",
-    "ai",
-    "cli",
-    "developer-tools",
-    "linear"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Vedant1202/daily-work-summarizer.git"
-  },
-  "main": "./dist/bin/daily-summary.js",
-  "types": "./dist/bin/daily-summary.d.ts",
-  "exports": {
-    ".": "./dist/bin/daily-summary.js"
-  },
-  "bin": {
-    "daily-summary": "./dist/bin/daily-summary.js"
-  },
-  "files": [
-    "dist/",
-    "README.md",
-    "LICENSE"
-  ],
-  "publishConfig": {
-    "access": "public"
-  },
-  "scripts": {
-    "build": "cd ui && npm install && npm run build && cd .. && tsc && chmod +x dist/bin/daily-summary.js",
-    "build:backend": "tsc && chmod +x dist/bin/daily-summary.js",
-    "build:frontend": "cd ui && npm run build",
-    "prepare": "npm run build",
-    "dev": "tsx src/bin/daily-summary.ts",
-    "start": "node dist/bin/daily-summary.js",
-    "test": "vitest run",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@google/generative-ai": "^0.21.0",
-    "@linear/sdk": "^84.0.0",
-    "commander": "^12.1.0",
-    "express": "^4.21.0",
-    "open": "^10.1.0"
-  },
-  "devDependencies": {
-    "@types/express": "^4.17.21",
-    "@types/node": "^22.0.0",
-    "tsx": "^4.19.0",
-    "typescript": "^5.6.0",
-    "vitest": "^2.0.0"
-  }
-}
-</file>
-
 <file path="src/config/loader.ts">
 import fs from 'fs';
 import path from 'path';
@@ -8980,6 +8928,74 @@ export function maskConfig(config: Config): Config {
     masked.integrations.mintlify.apiKey = '***';
   }
   return masked;
+}
+</file>
+
+<file path="package.json">
+{
+  "name": "daily-commit-summarizer",
+  "version": "0.3.0",
+  "description": "Generate daily stand-up summaries from git commits using Gemini AI",
+  "type": "commonjs",
+  "license": "MIT",
+  "homepage": "https://www.npmjs.com/package/daily-commit-summarizer",
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "git",
+    "standup",
+    "summary",
+    "gemini",
+    "ai",
+    "cli",
+    "developer-tools",
+    "linear"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Vedant1202/daily-work-summarizer.git"
+  },
+  "main": "./dist/bin/daily-summary.js",
+  "types": "./dist/bin/daily-summary.d.ts",
+  "exports": {
+    ".": "./dist/bin/daily-summary.js"
+  },
+  "bin": {
+    "daily-summary": "./dist/bin/daily-summary.js"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "cd ui && npm install && npm run build && cd .. && tsc && chmod +x dist/bin/daily-summary.js",
+    "build:backend": "tsc && chmod +x dist/bin/daily-summary.js",
+    "build:frontend": "cd ui && npm run build",
+    "prepare": "npm run build",
+    "dev": "tsx src/bin/daily-summary.ts",
+    "start": "node dist/bin/daily-summary.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "@linear/sdk": "^84.0.0",
+    "commander": "^12.1.0",
+    "express": "^4.21.0",
+    "open": "^10.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0"
+  }
 }
 </file>
 
