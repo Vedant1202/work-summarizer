@@ -1,6 +1,29 @@
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import Mustache from 'mustache';
 import { SummaryLength, CommitCategory } from '../config/types';
 import { NormalizedCommit } from '../git/normalizer';
 import { MintlifyDeployRecord } from '../integrations/mintlify/types';
+import { LLMProvider } from './types';
+
+// Embedded default template — avoids file-read issues in global npm installs
+const DEFAULT_TEMPLATE = `{{{systemRules}}}
+
+---
+
+OUTPUT FORMAT:
+{{{lengthInstructions}}}
+
+---
+
+COMMITS (pre-classified by type):
+
+{{{commitBlock}}}
+
+---
+
+Write the stand-up summary now. Follow the format and rules above exactly.`;
 
 // Category display labels (order defines section order in output)
 const CATEGORY_LABELS: Record<CommitCategory, string> = {
@@ -71,10 +94,9 @@ function groupCommitsByCategory(commits: NormalizedCommit[]): Map<CommitCategory
   return groups;
 }
 
-export function buildSummarizationPrompt(commits: NormalizedCommit[], length: SummaryLength): string {
+export function buildSummarizationPrompt(commits: NormalizedCommit[], length: SummaryLength, templatePath?: string): string {
   const groups = groupCommitsByCategory(commits);
 
-  // Build the commit block in category order so the LLM receives pre-organized input
   const orderedSections = CATEGORY_ORDER
     .filter((cat) => groups.has(cat))
     .map((cat) => {
@@ -86,22 +108,44 @@ export function buildSummarizationPrompt(commits: NormalizedCommit[], length: Su
 
   const commitBlock = orderedSections || commits.map((c) => formatCommitForPrompt(c)).join('\n');
 
-  return `${SYSTEM_RULES}
+  // Template view — exposes both pre-built strings and raw commit data
+  const view = {
+    systemRules: SYSTEM_RULES,
+    lengthInstructions: LENGTH_INSTRUCTIONS[length],
+    commitBlock,
+    summaryLength: length,
+    commitCount: commits.length,
+    commits: commits.map((c) => ({
+      sha7: c.sha.slice(0, 7),
+      message: c.message,
+      category: c.category,
+      insertions: c.diffStat.insertions,
+      deletions: c.diffStat.deletions,
+      diff: c.diff,
+      changedFiles: c.changedFiles,
+    })),
+  };
 
----
+  let template = DEFAULT_TEMPLATE;
+  if (templatePath) {
+    const resolved = templatePath.replace(/^~/, os.homedir());
+    template = fs.readFileSync(path.resolve(resolved), 'utf8');
+  }
 
-OUTPUT FORMAT:
-${LENGTH_INSTRUCTIONS[length]}
+  return Mustache.render(template, view);
+}
 
----
-
-COMMITS (pre-classified by type):
-
-${commitBlock}
-
----
-
-Write the stand-up summary now. Follow the format and rules above exactly.`;
+export async function summarizeCommits(
+  provider: LLMProvider,
+  commits: NormalizedCommit[],
+  summaryLength: SummaryLength,
+  templatePath?: string,
+): Promise<string> {
+  if (commits.length === 0) {
+    return 'No commits found in the specified time window.';
+  }
+  const prompt = buildSummarizationPrompt(commits, summaryLength, templatePath);
+  return provider.rawPrompt(prompt);
 }
 
 export function buildDeploymentSummaryPrompt(records: MintlifyDeployRecord[]): string {

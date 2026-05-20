@@ -2,8 +2,9 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { SummaryLength } from '../config/types';
 import { NormalizedCommit } from '../git/normalizer';
 import { buildSummarizationPrompt } from './prompts';
+import { LLMProvider } from './types';
 
-export class GeminiProvider {
+export class GeminiProvider implements LLMProvider {
   private client: GoogleGenerativeAI;
   private model: string;
 

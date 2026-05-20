@@ -2,7 +2,8 @@ import path from 'path';
 import { loadConfig } from '../../config/loader';
 import { ingestCommits } from '../../git/ingestion';
 import { normalizeDiff } from '../../git/normalizer';
-import { GeminiProvider } from '../../llm/gemini';
+import { createProvider } from '../../llm/loader';
+import { LLMProvider } from '../../llm/types';
 import { detectDocSignals } from '../../docs/detector';
 import { generateDocTasks } from '../../docs/generator';
 import { exportDocTasks } from '../../docs/exporter';
@@ -230,9 +231,9 @@ export async function docsCommand(options: DocsOptions): Promise<void> {
   console.log(`Found ${signals.length} potential documentation task(s).`);
 
   // Optional LLM enrichment
-  let provider: GeminiProvider | undefined;
+  let provider: LLMProvider | undefined;
   if (options.llm && config.llm.apiKey && config.llm.model) {
-    provider = new GeminiProvider(config.llm.apiKey, config.llm.model);
+    provider = createProvider(config.llm);
     console.log(`Enriching task descriptions with ${config.llm.model}...`);
   } else if (options.llm) {
     console.log('LLM enrichment requested but GEMINI_API_KEY or GEMINI_MODEL not set — using templates.');

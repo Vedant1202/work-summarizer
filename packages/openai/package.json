@@ -1,0 +1,27 @@
+{
+  "name": "@daily-summary/openai",
+  "version": "0.1.0",
+  "description": "OpenAI-compatible provider plugin for daily-commit-summarizer. Works with OpenAI, Ollama, Groq, Mistral, Together.ai, LM Studio, and any OpenAI-compatible endpoint.",
+  "type": "commonjs",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "peerDependencies": {
+    "openai": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "openai": "^4.0.0",
+    "typescript": "^5.6.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Vedant1202/daily-work-summarizer.git",
+    "directory": "packages/openai"
+  },
+  "keywords": ["daily-summary", "openai", "llm", "plugin", "ollama", "groq", "mistral"]
+}

@@ -3,7 +3,7 @@ import { loadConfig } from '../../config/loader';
 import { MintlifyDeployClient } from '../../integrations/mintlify/deploy';
 import { upsertDeployRecord, listDeployRecords, filterRecordsSince } from '../../integrations/mintlify/cache';
 import { MintlifyDeployMode, MintlifyStatusResponse } from '../../integrations/mintlify/types';
-import { GeminiProvider } from '../../llm/gemini';
+import { createProvider } from '../../llm/loader';
 import { buildDeploymentSummaryPrompt } from '../../llm/prompts';
 
 const router = Router();
@@ -121,7 +121,7 @@ router.post('/summary', async (req, res) => {
   }
 
   try {
-    const provider = new GeminiProvider(config.llm.apiKey, config.llm.model);
+    const provider = createProvider(config.llm);
     const prompt = buildDeploymentSummaryPrompt(records);
     const summary = await provider.rawPrompt(prompt);
     res.json({ summary });

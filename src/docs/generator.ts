@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { GeminiProvider } from '../llm/gemini';
+import { LLMProvider } from '../llm/types';
 import { DocSignal, DocTask, DocTaskCategory } from './types';
 
 // ── Template definitions ──────────────────────────────────────────────────────
@@ -130,7 +130,7 @@ Rules:
 
 async function generateWithLLM(
   signal: DocSignal,
-  provider: GeminiProvider,
+  provider: LLMProvider,
 ): Promise<{ title: string; description: string; actionItems: string[] } | null> {
   try {
     const prompt = buildDocTaskPrompt(signal);
@@ -160,7 +160,7 @@ export async function generateDocTasks(
   signals: DocSignal[],
   repoPath: string,
   useLLM: boolean,
-  provider?: GeminiProvider,
+  provider?: LLMProvider,
 ): Promise<DocTask[]> {
   const docFiles = suggestDocFiles(repoPath);
   const tasks: DocTask[] = [];

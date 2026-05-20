@@ -1,5 +1,5 @@
 import { loadConfig } from '../../config/loader';
-import { GeminiProvider } from '../../llm/gemini';
+import { createProvider } from '../../llm/loader';
 import { LinearIntegrationClient } from '../../integrations/linear/client';
 
 const GREEN = '\x1b[32m';
@@ -73,7 +73,7 @@ export async function doctorCommand(): Promise<void> {
   console.log(`\n${BOLD}Testing Gemini connection...${RESET}`);
   if (geminiKey && geminiModel) {
     try {
-      const provider = new GeminiProvider(geminiKey, geminiModel);
+      const provider = createProvider({ ...config.llm, apiKey: geminiKey, model: geminiModel });
       const response = await provider.rawPrompt('Reply with just the word OK');
       if (response.trim()) {
         pass('Gemini API', `reachable (${geminiModel})`);

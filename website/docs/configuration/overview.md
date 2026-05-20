@@ -75,8 +75,11 @@ See [Environment Variables](./env-variables.md) for the full list.
 | `timeWindow` | string | Default commit window (`30m`, `24h`, `2d`, `1w`). |
 | `excludePaths` | string[] | Patterns or substrings excluded from normalized diffs. |
 | `focusAreas` | string[] | Only include commits that touch at least one of these patterns. |
-| `llm.model` | string | Gemini model name (set by `GEMINI_MODEL` env var or JSON config). |
+| `llm.provider` | string | LLM provider. `"gemini"` (default), an npm package (e.g. `"@daily-summary/openai"`), or a relative path. |
+| `llm.model` | string | Model name passed to the active provider. |
+| `llm.baseUrl` | string | Custom API base URL for OpenAI-compatible providers (Ollama, Groq, etc.). |
 | `llm.summaryLength` | `short\|medium\|long` | Summary verbosity. |
+| `llm.promptTemplate` | string | Path to a `.mustache` template file that overrides the built-in summarization prompt. |
 | `output.dir` | string | Report output directory (`~` is expanded). |
 | `output.format` | `markdown\|html\|both` | Default export format. |
 | `integrations.linear.teamId` | string | Linear team ID for `docs --create-issues`. |

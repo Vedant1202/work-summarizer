@@ -3,9 +3,12 @@ export type OutputFormat = 'markdown' | 'html' | 'both';
 export type CommitCategory = 'feat' | 'fix' | 'refactor' | 'docs' | 'chore' | 'perf' | 'test' | 'other';
 
 export interface LLMConfig {
+  provider?: string;
   model?: string;
   summaryLength: SummaryLength;
   apiKey?: string;
+  baseUrl?: string;
+  promptTemplate?: string;
 }
 
 export interface OutputConfig {

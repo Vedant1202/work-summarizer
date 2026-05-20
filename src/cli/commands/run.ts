@@ -3,7 +3,8 @@ import { loadConfig } from '../../config/loader';
 import { SummaryLength, OutputFormat } from '../../config/types';
 import { ingestCommits } from '../../git/ingestion';
 import { normalizeDiff } from '../../git/normalizer';
-import { GeminiProvider } from '../../llm/gemini';
+import { createProvider } from '../../llm/loader';
+import { summarizeCommits } from '../../llm/prompts';
 import { generateReport } from '../../report/generator';
 import { exportReport } from '../../report/exporter';
 import { openInEditor } from '../review';
@@ -126,18 +127,6 @@ export async function runCommand(options: RunOptions): Promise<void> {
 
   const format = (options.format ?? config.output.format ?? 'markdown') as OutputFormat;
 
-  if (!config.llm.apiKey) {
-    console.error('Error: GEMINI_API_KEY is not set. Export it as an environment variable or run:');
-    console.error('  daily-summary config set llm.apiKey <your-key>');
-    process.exit(1);
-  }
-
-  if (!config.llm.model) {
-    console.error('Error: GEMINI_MODEL is not set. Export it as an environment variable or run:');
-    console.error('  daily-summary config set llm.model <model-name>');
-    process.exit(1);
-  }
-
   console.log(`Scanning commits on branch "${config.branch}" since ${config.timeWindow}...`);
   const commits = ingestCommits(config, { since: config.timeWindow, branch: config.branch });
 
@@ -149,9 +138,9 @@ export async function runCommand(options: RunOptions): Promise<void> {
   console.log(`Found ${commits.length} commit(s). Normalizing diffs...`);
   const normalized = normalizeDiff(commits, config);
 
-  console.log(`Summarizing with ${config.llm.model} (${config.llm.summaryLength})...`);
-  const provider = new GeminiProvider(config.llm.apiKey, config.llm.model);
-  const summary = await provider.summarize(normalized, config.llm.summaryLength);
+  console.log(`Summarizing with ${config.llm.model ?? config.llm.provider ?? 'gemini'} (${config.llm.summaryLength})...`);
+  const provider = createProvider(config.llm);
+  const summary = await summarizeCommits(provider, normalized, config.llm.summaryLength, config.llm.promptTemplate);
 
   let ticketGroups: TicketGroup[] | undefined;
   if (options.withLinear) {

@@ -4,7 +4,7 @@ import { loadConfig } from '../../config/loader';
 import { MintlifyDeployClient } from '../../integrations/mintlify/deploy';
 import { appendDeployRecord, upsertDeployRecord, listDeployRecords, filterRecordsSince } from '../../integrations/mintlify/cache';
 import { MintlifyDeployRecord, MintlifyStatusResponse } from '../../integrations/mintlify/types';
-import { GeminiProvider } from '../../llm/gemini';
+import { createProvider } from '../../llm/loader';
 import { buildDeploymentSummaryPrompt } from '../../llm/prompts';
 import os from 'os';
 
@@ -397,7 +397,7 @@ export function mintlifyCommand(): Command {
       console.log(`\n${BOLD}Summary${RESET}`);
       console.log('-'.repeat(40));
       try {
-        const provider = new GeminiProvider(config.llm.apiKey!, config.llm.model!);
+        const provider = createProvider(config.llm);
         const prompt = buildDeploymentSummaryPrompt(records);
         const summary = await provider.rawPrompt(prompt);
         console.log(summary);
