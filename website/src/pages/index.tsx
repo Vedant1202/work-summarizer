@@ -129,7 +129,7 @@ function HomepageHero() {
           </Link>
           <Link
             className={clsx('button button--outline button--lg', styles.buttonGhost)}
-            to="https://github.com/vedantnandoskar/daily-commit-summarizer">
+            to="https://github.com/Vedant1202/daily-work-summarizer">
             View on GitHub
           </Link>
         </div>
