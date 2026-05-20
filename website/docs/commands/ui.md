@@ -6,7 +6,7 @@ sidebar_position: 2
 
 # `ui`
 
-Start a local web interface for `daily-commit-summarizer`. The UI exposes all of the CLI's features in a browser-based dashboard — no flags required.
+Start a local web interface for `daily-work-summarizer`. The UI exposes all of the CLI's features in a browser-based dashboard — no flags required.
 
 ```bash
 daily-summary ui

@@ -18,7 +18,7 @@ sidebar_position: 2
 ## Install from npm
 
 ```bash
-npm install -g daily-commit-summarizer
+npm install -g daily-work-summarizer
 ```
 
 Verify the install:
@@ -35,7 +35,7 @@ Run the interactive setup wizard:
 daily-summary config init
 ```
 
-The wizard prompts for your Gemini API key, model name, and optionally a Linear API key. It saves everything to `~/.daily-summary/.env`.
+The wizard prompts for your Gemini API key, model name, and optionally a Linear API key and Mintlify credentials. It saves everything to `~/.daily-summary/.env`.
 
 ```
 Welcome to daily-summary setup.
@@ -45,6 +45,8 @@ Config will be saved to: ~/.daily-summary/.env
   Gemini API key (https://aistudio.google.com/apikey): AIza...
   Gemini model name [default: gemini-3.1-flash-lite]:
   Linear API key (optional — press Enter to skip):
+  Mintlify API key (optional — press Enter to skip):
+  Mintlify project ID (optional — press Enter to skip):
 
 Config saved to ~/.daily-summary/.env
 
@@ -101,8 +103,8 @@ Reports are saved to `~/.daily-summary/reports/` by default.
 Use this path when contributing or evaluating the project locally.
 
 ```bash
-git clone https://github.com/vedantnandoskar/daily-commit-summarizer.git
-cd daily-commit-summarizer
+git clone https://github.com/Vedant1202/daily-work-summarizer.git
+cd daily-work-summarizer
 npm install
 cp .env.example .env
 ```
@@ -138,5 +140,5 @@ daily-summary doctor
 ## Updating
 
 ```bash
-npm update -g daily-commit-summarizer
+npm update -g daily-work-summarizer
 ```

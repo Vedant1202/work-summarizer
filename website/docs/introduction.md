@@ -8,7 +8,7 @@ slug: /introduction
 
 # Introduction
 
-`daily-commit-summarizer` is a TypeScript CLI that turns local Git history into polished daily stand-up summaries. It scans commits for a configurable time window, filters noise, asks Gemini to summarise the work, and exports Markdown or HTML reports — all from a single command.
+`daily-work-summarizer` is a TypeScript CLI that turns local Git history into polished daily stand-up summaries. It scans commits for a configurable time window, filters noise, asks Gemini to summarise the work, and exports Markdown or HTML reports — all from a single command.
 
 ## What It Does
 

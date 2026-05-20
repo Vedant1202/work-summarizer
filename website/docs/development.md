@@ -16,8 +16,8 @@ sidebar_position: 5
 ## Local Setup
 
 ```bash
-git clone https://github.com/vedantnandoskar/daily-commit-summarizer.git
-cd daily-commit-summarizer
+git clone https://github.com/Vedant1202/daily-work-summarizer.git
+cd daily-work-summarizer
 npm install
 cp .env.example .env
 ```
