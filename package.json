@@ -1,6 +1,6 @@
 {
   "name": "daily-commit-summarizer",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "Generate daily stand-up summaries from git commits using Gemini AI",
   "type": "commonjs",
   "license": "MIT",
