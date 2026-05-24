@@ -52,11 +52,11 @@ function readExistingEnvKey(key: string): string {
 export async function configInitCommand(): Promise<void> {
   if (!process.stdin.isTTY) {
     console.error('config init requires an interactive terminal.');
-    console.error('Set keys directly: export GEMINI_API_KEY=<key>  or  daily-summary config set llm.apiKey <key>');
+    console.error('Set keys directly: export GEMINI_API_KEY=<key>  or  work-summary config set llm.apiKey <key>');
     process.exit(1);
   }
 
-  console.log('\nWelcome to daily-summary setup.\n');
+  console.log('\nWelcome to work-summary setup.\n');
   console.log(`Config will be saved to: ${GLOBAL_ENV_FILE}\n`);
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -99,7 +99,7 @@ export async function configInitCommand(): Promise<void> {
     }
 
     console.log(`\nConfig saved to ${GLOBAL_ENV_FILE}`);
-    console.log('\nNext: run  daily-summary doctor  to verify your setup.');
+    console.log('\nNext: run  work-summary doctor  to verify your setup.');
   } catch (err) {
     rl.close();
     throw err;

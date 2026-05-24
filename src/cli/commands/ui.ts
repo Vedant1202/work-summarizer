@@ -10,7 +10,7 @@ export async function uiCommand(): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     server.listen(PORT, () => {
       const url = `http://localhost:${PORT}`;
-      console.log(`\ndaily-summary UI  →  ${url}\n`);
+      console.log(`\nwork-summary UI  →  ${url}\n`);
       void import('open').then(({ default: open }) => open(url)).catch(() => {
         console.log(`Open your browser to: ${url}`);
       });

@@ -10,13 +10,13 @@ export function createProvider(config: LLMConfig): LLMProvider {
     if (!apiKey) {
       throw new Error(
         'GEMINI_API_KEY is not set. Export it as an environment variable or run:\n' +
-        '  daily-summary config init',
+        '  work-summary config init',
       );
     }
     if (!model) {
       throw new Error(
         'GEMINI_MODEL is not set. Export it as an environment variable or run:\n' +
-        '  daily-summary config init',
+        '  work-summary config init',
       );
     }
     return new GeminiProvider(apiKey, model);

@@ -18,13 +18,13 @@ sidebar_position: 2
 ## Install from npm
 
 ```bash
-npm install -g daily-work-summarizer
+npm install -g work-summarizer
 ```
 
 Verify the install:
 
 ```bash
-daily-summary --version
+work-summary --version
 ```
 
 ## Set Up Credentials
@@ -32,15 +32,15 @@ daily-summary --version
 Run the interactive setup wizard:
 
 ```bash
-daily-summary config init
+work-summary config init
 ```
 
-The wizard prompts for your Gemini API key, model name, and optionally a Linear API key and Mintlify credentials. It saves everything to `~/.daily-summary/.env`.
+The wizard prompts for your Gemini API key, model name, and optionally a Linear API key and Mintlify credentials. It saves everything to `~/.work-summary/.env`.
 
 ```
-Welcome to daily-summary setup.
+Welcome to work-summary setup.
 
-Config will be saved to: ~/.daily-summary/.env
+Config will be saved to: ~/.work-summary/.env
 
   Gemini API key (https://aistudio.google.com/apikey): AIza...
   Gemini model name [default: gemini-3.1-flash-lite]:
@@ -48,9 +48,9 @@ Config will be saved to: ~/.daily-summary/.env
   Mintlify API key (optional — press Enter to skip):
   Mintlify project ID (optional — press Enter to skip):
 
-Config saved to ~/.daily-summary/.env
+Config saved to ~/.work-summary/.env
 
-Next: run  daily-summary doctor  to verify your setup.
+Next: run  work-summary doctor  to verify your setup.
 ```
 
 Alternatively, export variables directly in your shell:
@@ -63,7 +63,7 @@ export GEMINI_MODEL="gemini-3.1-flash-lite"
 ## Verify the Setup
 
 ```bash
-daily-summary doctor
+work-summary doctor
 ```
 
 A healthy setup looks like:
@@ -85,16 +85,16 @@ Testing Gemini connection...
 Testing Linear connection...
   - Linear API            skipped (no key)
 
-Setup looks good. Run: daily-summary run --since 24h --no-edit
+Setup looks good. Run: work-summary run --since 24h --no-edit
 ```
 
 ## Run Your First Report
 
 ```bash
-daily-summary run --repo /path/to/your-project --since 24h --no-edit
+work-summary run --repo /path/to/your-project --since 24h --no-edit
 ```
 
-Reports are saved to `~/.daily-summary/reports/` by default.
+Reports are saved to `~/.work-summary/reports/` by default.
 
 ---
 
@@ -103,8 +103,8 @@ Reports are saved to `~/.daily-summary/reports/` by default.
 Use this path when contributing or evaluating the project locally.
 
 ```bash
-git clone https://github.com/Vedant1202/daily-work-summarizer.git
-cd daily-work-summarizer
+git clone https://github.com/Vedant1202/work-summarizer.git
+cd work-summarizer
 npm install
 cp .env.example .env
 ```
@@ -134,11 +134,11 @@ Link for local CLI-style testing:
 
 ```bash
 npm link
-daily-summary doctor
+work-summary doctor
 ```
 
 ## Updating
 
 ```bash
-npm update -g daily-work-summarizer
+npm update -g work-summarizer
 ```

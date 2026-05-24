@@ -3,7 +3,7 @@ import path from 'path';
 import os from 'os';
 import { execSync } from 'child_process';
 
-const PLIST_LABEL = 'com.daily-summary';
+const PLIST_LABEL = 'com.work-summary';
 const PLIST_PATH = path.join(os.homedir(), 'Library', 'LaunchAgents', `${PLIST_LABEL}.plist`);
 
 interface ScheduleOptions {
@@ -13,15 +13,15 @@ interface ScheduleOptions {
 
 function resolveBinaryPath(): string {
   try {
-    return execSync('which daily-summary', { encoding: 'utf8' }).trim();
+    return execSync('which work-summary', { encoding: 'utf8' }).trim();
   } catch {
     // Fall back to the running Node binary path companion
-    return path.join(path.dirname(process.execPath), 'daily-summary');
+    return path.join(path.dirname(process.execPath), 'work-summary');
   }
 }
 
 function buildPlist(binaryPath: string, hour: number, minute: number): string {
-  const logDir = path.join(os.homedir(), '.daily-summary', 'logs');
+  const logDir = path.join(os.homedir(), '.work-summary', 'logs');
   fs.mkdirSync(logDir, { recursive: true });
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -47,10 +47,10 @@ function buildPlist(binaryPath: string, hour: number, minute: number): string {
   </dict>
 
   <key>StandardOutPath</key>
-  <string>${path.join(logDir, 'daily-summary.log')}</string>
+  <string>${path.join(logDir, 'work-summary.log')}</string>
 
   <key>StandardErrorPath</key>
-  <string>${path.join(logDir, 'daily-summary-error.log')}</string>
+  <string>${path.join(logDir, 'work-summary-error.log')}</string>
 
   <key>RunAtLoad</key>
   <false/>
@@ -59,7 +59,7 @@ function buildPlist(binaryPath: string, hour: number, minute: number): string {
 }
 
 function buildCrontabLine(binaryPath: string, hour: number, minute: number): string {
-  return `${minute} ${hour} * * * ${binaryPath} run --no-edit >> ~/.daily-summary/logs/daily-summary.log 2>&1`;
+  return `${minute} ${hour} * * * ${binaryPath} run --no-edit >> ~/.work-summary/logs/work-summary.log 2>&1`;
 }
 
 export function scheduleCommand(options: ScheduleOptions): void {
@@ -80,7 +80,7 @@ export function scheduleCommand(options: ScheduleOptions): void {
         console.log('No scheduled job found.');
       }
     } else {
-      console.log('To remove the crontab entry, run `crontab -e` and delete the daily-summary line.');
+      console.log('To remove the crontab entry, run `crontab -e` and delete the work-summary line.');
     }
     return;
   }
@@ -102,11 +102,11 @@ export function scheduleCommand(options: ScheduleOptions): void {
     fs.writeFileSync(PLIST_PATH, plistContent, 'utf8');
 
     console.log(`\nLaunchAgent written to: ${PLIST_PATH}`);
-    console.log(`Scheduled: daily-summary run --no-edit at ${options.time} every day\n`);
+    console.log(`Scheduled: work-summary run --no-edit at ${options.time} every day\n`);
     console.log('To activate, run:');
     console.log(`  launchctl load "${PLIST_PATH}"`);
     console.log('\nTo remove later:');
-    console.log('  daily-summary schedule --remove');
+    console.log('  work-summary schedule --remove');
   } else {
     const crontabLine = buildCrontabLine(binaryPath, hour, minute);
     console.log(`\nAdd this line to your crontab (run \`crontab -e\`):\n`);

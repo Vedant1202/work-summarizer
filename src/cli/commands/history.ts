@@ -42,7 +42,7 @@ export async function historyCommand(options: HistoryOptions): Promise<void> {
   if (options.last) {
     const reportPath = getLastReportPath(config);
     if (!reportPath) {
-      console.error('No reports yet. Run `daily-summary run` first.');
+      console.error('No reports yet. Run `work-summary run` first.');
       process.exit(1);
     }
     const content = fs.readFileSync(reportPath, 'utf8');
@@ -53,7 +53,7 @@ export async function historyCommand(options: HistoryOptions): Promise<void> {
   const reports = listAllReports(config);
 
   if (reports.length === 0) {
-    console.log('No reports yet. Run `daily-summary run` to generate your first report.');
+    console.log('No reports yet. Run `work-summary run` to generate your first report.');
     return;
   }
 

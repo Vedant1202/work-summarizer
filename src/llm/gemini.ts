@@ -9,7 +9,7 @@ export class GeminiProvider implements LLMProvider {
   private model: string;
 
   constructor(apiKey: string, model: string) {
-    if (!apiKey) throw new Error('GEMINI_API_KEY is required. Set it via environment variable or `daily-summary config set llm.apiKey <key>`.');
+    if (!apiKey) throw new Error('GEMINI_API_KEY is required. Set it via environment variable or `work-summary config set llm.apiKey <key>`.');
     this.client = new GoogleGenerativeAI(apiKey);
     this.model = model;
   }

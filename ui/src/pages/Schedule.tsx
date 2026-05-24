@@ -21,7 +21,7 @@ export default function Schedule() {
     try {
       await api.setSchedule(time);
       await load();
-      setMsg(`Plist written for ${time}. To activate: launchctl load ~/Library/LaunchAgents/com.daily-summary.plist`);
+      setMsg(`Plist written for ${time}. To activate: launchctl load ~/Library/LaunchAgents/com.work-summary.plist`);
     } catch (e) {
       setMsg(`Error: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
@@ -52,7 +52,7 @@ export default function Schedule() {
       {status.platform === 'linux' && (
         <div style={infoBox}>
           Linux scheduling requires manual crontab setup. Use{' '}
-          <code>daily-summary schedule --time HH:MM</code> in your terminal for the crontab line.
+          <code>work-summary schedule --time HH:MM</code> in your terminal for the crontab line.
         </div>
       )}
 

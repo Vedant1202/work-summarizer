@@ -30,7 +30,7 @@ export async function doctorCommand(): Promise<void> {
   if (geminiKey) {
     pass('GEMINI_API_KEY', 'set');
   } else {
-    fail('GEMINI_API_KEY', 'not set — run: daily-summary config init');
+    fail('GEMINI_API_KEY', 'not set — run: work-summary config init');
     allRequired = false;
   }
 
@@ -38,7 +38,7 @@ export async function doctorCommand(): Promise<void> {
   if (geminiModel) {
     pass('GEMINI_MODEL', geminiModel);
   } else {
-    fail('GEMINI_MODEL', 'not set — run: daily-summary config init');
+    fail('GEMINI_MODEL', 'not set — run: work-summary config init');
     allRequired = false;
   }
 
@@ -100,7 +100,7 @@ export async function doctorCommand(): Promise<void> {
         if (!teamId) {
           console.log(`\n  ${DIM}Tip: save your team ID with:${RESET}`);
           for (const t of teams) {
-            console.log(`    ${DIM}daily-summary config set integrations.linear.teamId ${t.id}  # ${t.name}${RESET}`);
+            console.log(`    ${DIM}work-summary config set integrations.linear.teamId ${t.id}  # ${t.name}${RESET}`);
           }
         }
       } else {
@@ -116,9 +116,9 @@ export async function doctorCommand(): Promise<void> {
 
   console.log();
   if (allRequired) {
-    console.log(`${GREEN}${BOLD}Setup looks good.${RESET} Run: daily-summary run --since 24h --no-edit`);
+    console.log(`${GREEN}${BOLD}Setup looks good.${RESET} Run: work-summary run --since 24h --no-edit`);
   } else {
-    console.log(`${RED}${BOLD}Setup incomplete.${RESET} Run: daily-summary config init`);
+    console.log(`${RED}${BOLD}Setup incomplete.${RESET} Run: work-summary config init`);
     process.exit(1);
   }
   console.log();

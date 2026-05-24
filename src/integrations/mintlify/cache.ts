@@ -3,7 +3,7 @@ import os from 'os';
 import path from 'path';
 import { MintlifyDeployRecord } from './types';
 
-const CACHE_PATH = path.join(os.homedir(), '.daily-summary', 'mintlify-deployments.json');
+const CACHE_PATH = path.join(os.homedir(), '.work-summary', 'mintlify-deployments.json');
 
 interface DeployCache {
   deployments: MintlifyDeployRecord[];

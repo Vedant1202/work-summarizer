@@ -64,7 +64,7 @@ export function mintlifyCommand(): Command {
       if (!apiKey) {
         console.error('Error: MINTLIFY_API_KEY is not set.');
         console.error('  export MINTLIFY_API_KEY=mint_...');
-        console.error('  or: daily-summary config set integrations.mintlify.apiKey mint_...');
+        console.error('  or: work-summary config set integrations.mintlify.apiKey mint_...');
         process.exit(1);
       }
 
@@ -72,7 +72,7 @@ export function mintlifyCommand(): Command {
       if (!projectId) {
         console.error('Error: Mintlify project ID is not set.');
         console.error('  Pass it as a flag: --project-id <id>');
-        console.error('  Or set it: daily-summary config set integrations.mintlify.projectId <id>');
+        console.error('  Or set it: work-summary config set integrations.mintlify.projectId <id>');
         console.error('  Or export: MINTLIFY_PROJECT_ID=<id>');
         process.exit(1);
       }
@@ -162,7 +162,7 @@ export function mintlifyCommand(): Command {
 
         const record = client.buildDeployRecord(statusId, mode, finalStatus, { branch, previewUrl });
         appendDeployRecord(record);
-        console.log(`\n  ${DIM}Deployment cached. Run: daily-summary mintlify history${RESET}\n`);
+        console.log(`\n  ${DIM}Deployment cached. Run: work-summary mintlify history${RESET}\n`);
 
         if (!success) process.exit(1);
       } catch (err) {
@@ -231,7 +231,7 @@ export function mintlifyCommand(): Command {
       const records = listDeployRecords(isNaN(limit) ? 20 : limit);
 
       if (records.length === 0) {
-        console.log('No deployment records yet. Run: daily-summary mintlify trigger');
+        console.log('No deployment records yet. Run: work-summary mintlify trigger');
         return;
       }
 
@@ -293,11 +293,11 @@ export function mintlifyCommand(): Command {
       // Validate LLM credentials unless --raw
       if (!options.raw) {
         if (!config.llm.apiKey) {
-          console.error('Error: GEMINI_API_KEY is not set. Use --raw to skip LLM, or run: daily-summary config init');
+          console.error('Error: GEMINI_API_KEY is not set. Use --raw to skip LLM, or run: work-summary config init');
           process.exit(1);
         }
         if (!config.llm.model) {
-          console.error('Error: GEMINI_MODEL is not set. Use --raw to skip LLM, or run: daily-summary config init');
+          console.error('Error: GEMINI_MODEL is not set. Use --raw to skip LLM, or run: work-summary config init');
           process.exit(1);
         }
       }
@@ -307,7 +307,7 @@ export function mintlifyCommand(): Command {
 
       if (records.length === 0) {
         console.log(`No Mintlify deployments found in the last ${since}.`);
-        console.log('Run: daily-summary mintlify trigger');
+        console.log('Run: work-summary mintlify trigger');
         return;
       }
 

@@ -14,7 +14,7 @@ export async function exportCommand(options: ExportOptions): Promise<void> {
 
   if (!reportPath) {
     const hint = options.date ? `for date ${options.date}` : 'yet';
-    console.error(`No report found ${hint}. Run \`daily-summary run\` first.`);
+    console.error(`No report found ${hint}. Run \`work-summary run\` first.`);
     process.exit(1);
   }
 

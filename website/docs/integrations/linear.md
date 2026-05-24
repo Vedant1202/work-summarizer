@@ -6,7 +6,7 @@ sidebar_position: 1
 
 # Linear Integration
 
-`daily-summary` integrates with Linear in two ways:
+`work-summary` integrates with Linear in two ways:
 
 1. **Report enrichment** — `run --with-linear` groups commits by Linear issue with status, priority, and sprint data.
 2. **Doc-task issue creation** — `docs --create-issues` creates a Linear issue for each accepted documentation task.
@@ -20,7 +20,7 @@ Go to [Linear → Settings → Account → Security](https://linear.app/settings
 ### 2. Configure it
 
 ```bash
-daily-summary config init
+work-summary config init
 # or
 export LINEAR_API_KEY="lin_api_..."
 ```
@@ -30,17 +30,17 @@ export LINEAR_API_KEY="lin_api_..."
 Required for `docs --create-issues`. If you haven't set it yet, `doctor` will print the team IDs it finds:
 
 ```bash
-daily-summary doctor
+work-summary doctor
 
 # Output:
 #   Tip: save your team ID with:
-#     daily-summary config set integrations.linear.teamId team-abc123  # Engineering
+#     work-summary config set integrations.linear.teamId team-abc123  # Engineering
 ```
 
 Then:
 
 ```bash
-daily-summary config set integrations.linear.teamId team-abc123
+work-summary config set integrations.linear.teamId team-abc123
 ```
 
 ---
@@ -48,7 +48,7 @@ daily-summary config set integrations.linear.teamId team-abc123
 ## Report Enrichment (`run --with-linear`)
 
 ```bash
-daily-summary run --since 7d --with-linear --no-edit
+work-summary run --since 7d --with-linear --no-edit
 ```
 
 ### How issue refs are extracted
@@ -94,7 +94,7 @@ Commits without a matching Linear issue are grouped under **Unlinked commits** a
 ## Doc-Task Issue Creation (`docs --create-issues`)
 
 ```bash
-daily-summary docs --since 7d --create-issues
+work-summary docs --since 7d --create-issues
 ```
 
 After the interactive review, the tool prompts once per accepted task:
@@ -123,4 +123,4 @@ A link to the created issue is stored in the exported doc-task JSON and shown on
 |---|---|
 | `Linear API error: 401` | Check your `LINEAR_API_KEY` is valid and not expired. |
 | `--with-linear` shows no issue data | Commit messages or branch name don't contain Linear identifiers (`TEAM-NNN`). |
-| `--create-issues` warns about missing teamId | Run `daily-summary doctor` to find your team ID, then `config set integrations.linear.teamId`. |
+| `--create-issues` warns about missing teamId | Run `work-summary doctor` to find your team ID, then `config set integrations.linear.teamId`. |

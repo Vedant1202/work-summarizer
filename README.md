@@ -1,13 +1,13 @@
-# daily-commit-summarizer
+# work-summarizer
 
-[![npm version](https://img.shields.io/npm/v/daily-commit-summarizer.svg)](https://www.npmjs.com/package/daily-commit-summarizer)
-[![npm downloads](https://img.shields.io/npm/dw/daily-commit-summarizer.svg)](https://www.npmjs.com/package/daily-commit-summarizer)
+[![npm version](https://img.shields.io/npm/v/work-summarizer.svg)](https://www.npmjs.com/package/work-summarizer)
+[![npm downloads](https://img.shields.io/npm/dw/work-summarizer.svg)](https://www.npmjs.com/package/work-summarizer)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Docs](https://img.shields.io/badge/docs-online-6366f1)](https://Vedant1202.github.io/daily-work-summarizer/)
+[![Docs](https://img.shields.io/badge/docs-online-6366f1)](https://Vedant1202.github.io/work-summarizer/)
 
-`daily-commit-summarizer` is a TypeScript CLI that turns local Git history into polished daily stand-up summaries. Point it at any repo, choose a time window, and get a structured, AI-generated report — categorised by feature, fix, refactor, test, chore, and more.
+`work-summarizer` is a TypeScript CLI that turns local Git history into polished work summaries. Point it at any repo, choose a time window, and get a structured, AI-generated report — categorised by feature, fix, refactor, test, chore, and more.
 
-**[Full documentation →](https://Vedant1202.github.io/daily-work-summarizer/)**
+**[Full documentation →](https://Vedant1202.github.io/work-summarizer/)**
 
 ## What It Does
 
@@ -22,11 +22,11 @@
 ## Quick Start
 
 ```bash
-npm install -g daily-commit-summarizer
-daily-summary config init          # set your Gemini API key
-daily-summary doctor               # verify setup
-daily-summary run --since 24h --no-edit
-daily-summary ui                   # open the web UI at http://localhost:7331
+npm install -g work-summarizer
+work-summary config init          # set your Gemini API key
+work-summary doctor               # verify setup
+work-summary run --since 24h --no-edit
+work-summary ui                   # open the web UI at http://localhost:7331
 ```
 
 ## Architecture
@@ -35,7 +35,7 @@ daily-summary ui                   # open the web UI at http://localhost:7331
 
 ```mermaid
 flowchart TD
-  A["CLI: daily-summary run"] --> B["Load configuration"]
+  A["CLI: work-summary run"] --> B["Load configuration"]
   B --> C["Read git commits"]
   C --> D["Normalize diffs and categorize commits"]
   D --> E["Generate summary with Gemini"]
@@ -58,9 +58,9 @@ flowchart TD
 ```mermaid
 flowchart TD
   A["Built-in defaults"] --> F["Merged config"]
-  B["~/.daily-summary/config.json"] --> F
-  C[".daily-summary.json (repo-local)"] --> F
-  D["~/.daily-summary/.env + ./.env"] --> E["process.env vars"]
+  B["~/.work-summary/config.json"] --> F
+  C[".work-summary.json (repo-local)"] --> F
+  D["~/.work-summary/.env + ./.env"] --> E["process.env vars"]
   E --> F
   F --> G["Runtime config"]
 ```
@@ -75,9 +75,9 @@ flowchart TD
 
 The full reference — all commands, flags, configuration options, integration guides, and development notes — lives at:
 
-**[https://Vedant1202.github.io/daily-work-summarizer/](https://Vedant1202.github.io/daily-work-summarizer/)**
+**[https://Vedant1202.github.io/work-summarizer/](https://Vedant1202.github.io/work-summarizer/)**
 
-**[npm package →](https://www.npmjs.com/package/daily-commit-summarizer)**
+**[npm package →](https://www.npmjs.com/package/work-summarizer)**
 
 ## License
 

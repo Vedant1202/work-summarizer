@@ -6,10 +6,10 @@ sidebar_position: 8
 
 # `schedule`
 
-Set up an automated daily run of `daily-summary run --no-edit`.
+Set up an automated daily run of `work-summary run --no-edit`.
 
 ```bash
-daily-summary schedule [options]
+work-summary schedule [options]
 ```
 
 ## Flags
@@ -24,25 +24,25 @@ daily-summary schedule [options]
 On macOS, `schedule` writes a LaunchAgent plist to:
 
 ```
-~/Library/LaunchAgents/com.daily-summary.plist
+~/Library/LaunchAgents/com.work-summary.plist
 ```
 
 ```bash
 # Schedule at 08:30 every day
-daily-summary schedule --time 08:30
+work-summary schedule --time 08:30
 ```
 
 Output:
 
 ```
-LaunchAgent written to: ~/Library/LaunchAgents/com.daily-summary.plist
-Scheduled: daily-summary run --no-edit at 08:30 every day
+LaunchAgent written to: ~/Library/LaunchAgents/com.work-summary.plist
+Scheduled: work-summary run --no-edit at 08:30 every day
 
 To activate, run:
-  launchctl load "~/Library/LaunchAgents/com.daily-summary.plist"
+  launchctl load "~/Library/LaunchAgents/com.work-summary.plist"
 
 To remove later:
-  daily-summary schedule --remove
+  work-summary schedule --remove
 ```
 
 After running `launchctl load`, the job activates immediately and will fire every day at the configured time.
@@ -52,14 +52,14 @@ After running `launchctl load`, the job activates immediately and will fire ever
 Output is written to:
 
 ```
-~/.daily-summary/logs/daily-summary.log
-~/.daily-summary/logs/daily-summary-error.log
+~/.work-summary/logs/work-summary.log
+~/.work-summary/logs/work-summary-error.log
 ```
 
 ### Removing the job
 
 ```bash
-daily-summary schedule --remove
+work-summary schedule --remove
 ```
 
 This unloads the LaunchAgent and deletes the plist.
@@ -71,7 +71,7 @@ This unloads the LaunchAgent and deletes the plist.
 On non-macOS systems, `schedule` prints a crontab line for you to add manually:
 
 ```bash
-daily-summary schedule --time 08:00
+work-summary schedule --time 08:00
 ```
 
 Output:
@@ -79,7 +79,7 @@ Output:
 ```
 Add this line to your crontab (run `crontab -e`):
 
-  0 8 * * * /usr/local/bin/daily-summary run --no-edit >> ~/.daily-summary/logs/daily-summary.log 2>&1
+  0 8 * * * /usr/local/bin/work-summary run --no-edit >> ~/.work-summary/logs/work-summary.log 2>&1
 
 To remove, run `crontab -e` and delete that line.
 ```
@@ -88,13 +88,13 @@ To remove:
 
 ```bash
 crontab -e
-# delete the daily-summary line, save and exit
+# delete the work-summary line, save and exit
 ```
 
 ---
 
 ## Notes
 
-- The scheduled command always runs with `--no-edit` (non-interactive). The report is written to `~/.daily-summary/reports/` silently.
-- The binary path is auto-detected from `which daily-summary`. If detection fails, it falls back to the Node executable directory.
-- The scheduled run picks up configuration from `~/.daily-summary/.env` and `~/.daily-summary/config.json`, so make sure your global setup is correct: `daily-summary doctor`.
+- The scheduled command always runs with `--no-edit` (non-interactive). The report is written to `~/.work-summary/reports/` silently.
+- The binary path is auto-detected from `which work-summary`. If detection fails, it falls back to the Node executable directory.
+- The scheduled run picks up configuration from `~/.work-summary/.env` and `~/.work-summary/config.json`, so make sure your global setup is correct: `work-summary doctor`.

@@ -6,14 +6,14 @@ sidebar_position: 1
 
 # Configuration Overview
 
-`daily-summary` builds its runtime config by merging four layers, from lowest to highest priority:
+`work-summary` builds its runtime config by merging four layers, from lowest to highest priority:
 
 ```
 Built-in defaults
     ↓
-~/.daily-summary/config.json  (global JSON)
+~/.work-summary/config.json  (global JSON)
     ↓
-.daily-summary.json           (repo-local JSON)
+.work-summary.json           (repo-local JSON)
     ↓
 Environment variables         (shell + .env files)
 ```
@@ -28,7 +28,7 @@ A value set at a higher layer always wins. Shell-exported variables take precede
 | `branch` | `main` | Branch passed to `git log` |
 | `timeWindow` | `24h` | Commit window |
 | `llm.summaryLength` | `medium` | Gemini summary verbosity |
-| `output.dir` | `~/.daily-summary/reports` | Report output directory |
+| `output.dir` | `~/.work-summary/reports` | Report output directory |
 
 ## Per-Layer Details
 
@@ -36,29 +36,29 @@ A value set at a higher layer always wins. Shell-exported variables take precede
 
 Hard-coded in `src/config/loader.ts`. Always present — you never need to specify these unless you want something different.
 
-### Global JSON — `~/.daily-summary/config.json`
+### Global JSON — `~/.work-summary/config.json`
 
-Written by `daily-summary config set --global`. Good for non-secret preferences shared across all repos on your machine (e.g., `output.dir`, `llm.summaryLength`).
+Written by `work-summary config set --global`. Good for non-secret preferences shared across all repos on your machine (e.g., `output.dir`, `llm.summaryLength`).
 
 ```bash
-daily-summary config set output.dir "~/Reports" --global
-daily-summary config set llm.summaryLength long --global
+work-summary config set output.dir "~/Reports" --global
+work-summary config set llm.summaryLength long --global
 ```
 
-### Repo-local JSON — `.daily-summary.json`
+### Repo-local JSON — `.work-summary.json`
 
-Written by `daily-summary config set` (without `--global`). Commit this file to share defaults with your team or to pin settings per project.
+Written by `work-summary config set` (without `--global`). Commit this file to share defaults with your team or to pin settings per project.
 
 ```bash
-daily-summary config set branch main
-daily-summary config set timeWindow 48h
-daily-summary config set integrations.linear.teamId team-abc123
+work-summary config set branch main
+work-summary config set timeWindow 48h
+work-summary config set integrations.linear.teamId team-abc123
 ```
 
 ### Environment variables
 
 The highest-priority layer. Loaded from:
-1. `~/.daily-summary/.env` (global, written by `config init`)
+1. `~/.work-summary/.env` (global, written by `config init`)
 2. `.env` in the current working directory (repo-local, for source checkouts)
 3. Your shell environment (`export VAR=value`)
 
@@ -75,7 +75,7 @@ See [Environment Variables](./env-variables.md) for the full list.
 | `timeWindow` | string | Default commit window (`30m`, `24h`, `2d`, `1w`). |
 | `excludePaths` | string[] | Patterns or substrings excluded from normalized diffs. |
 | `focusAreas` | string[] | Only include commits that touch at least one of these patterns. |
-| `llm.provider` | string | LLM provider. `"gemini"` (default), an npm package (e.g. `"@daily-summary/openai"`), or a relative path. |
+| `llm.provider` | string | LLM provider. `"gemini"` (default), an npm package (e.g. `"@work-summary/openai"`), or a relative path. |
 | `llm.model` | string | Model name passed to the active provider. |
 | `llm.baseUrl` | string | Custom API base URL for OpenAI-compatible providers (Ollama, Groq, etc.). |
 | `llm.summaryLength` | `short\|medium\|long` | Summary verbosity. |
@@ -89,5 +89,5 @@ See [Environment Variables](./env-variables.md) for the full list.
 | `integrations.mintlify.projectId` | string | Mintlify project ID. |
 
 :::warning Secrets in config files
-Never put API keys in committed JSON config files. Use `~/.daily-summary/.env`, your shell's `export`, or `config init`. The `config show` command always masks key values.
+Never put API keys in committed JSON config files. Use `~/.work-summary/.env`, your shell's `export`, or `config init`. The `config show` command always masks key values.
 :::
