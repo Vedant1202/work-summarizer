@@ -1,0 +1,1 @@
+"use strict";(globalThis.webpackChunkwork_summarizer_docs=globalThis.webpackChunkwork_summarizer_docs||[]).push([[647],{7121(r,s,e){e.r(s),e.d(s,{default:()=>d});e(6540);var a=e(4164),u=e(7559),c=e(5500),o=e(2831),i=e(1656),l=e(4848);function d(r){return(0,l.jsx)(c.e3,{className:(0,a.A)(u.G.wrapper.docsPages),children:(0,l.jsx)(i.A,{children:(0,o.v)(r.route.routes)})})}}}]);

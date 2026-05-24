@@ -1,1 +1,0 @@
-"use strict";(globalThis.webpackChunkdaily_commit_summarizer_docs=globalThis.webpackChunkdaily_commit_summarizer_docs||[]).push([[742],{7093(s){s.exports=JSON.parse('{"name":"docusaurus-plugin-content-docs","id":"default"}')}}]);
