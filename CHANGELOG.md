@@ -1,3 +1,6 @@
+## [1.3.1](https://github.com/Vedant1202/work-summarizer/compare/v1.3.0...v1.3.1) (2026-05-24)
+# [1.3.0](https://github.com/Vedant1202/work-summarizer/compare/v1.2.0...v1.3.0) (2026-05-24)
+# [1.2.0](https://github.com/Vedant1202/work-summarizer/compare/v1.1.3...v1.2.0) (2026-05-24)
 
 # [1.1.0](https://github.com/Vedant1202/daily-commit-summarizer/compare/v1.0.0...v1.1.0) (2026-05-24)
 
