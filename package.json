@@ -47,7 +47,13 @@
     "start": "node dist/bin/work-summary.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s"
+    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s",
+    "preversion": "npm test",
+    "version": "npm run changelog && git add CHANGELOG.md",
+    "postversion": "git push && git push --tags && npm run release:github && npm run release:docs",
+    "release:github": "gh release create v$npm_package_version --generate-notes --title v$npm_package_version",
+    "release:docs": "gh workflow run deploy-docs.yml",
+    "release:npm": "npm publish"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
