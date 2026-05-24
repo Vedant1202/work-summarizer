@@ -12,7 +12,7 @@ export interface ProviderConfig {
 }
 
 /**
- * Factory function for the OpenAI-compatible daily-summary provider.
+ * Factory function for the OpenAI-compatible work-summary provider.
  *
  * Works with any OpenAI-compatible endpoint:
  *   - OpenAI (default)
@@ -21,10 +21,10 @@ export interface ProviderConfig {
  *   - Mistral: baseUrl = "https://api.mistral.ai/v1"
  *   - LM Studio: baseUrl = "http://localhost:1234/v1", apiKey = "lm-studio"
  *
- * Usage in .daily-summary.json:
+ * Usage in .work-summary.json:
  * {
  *   "llm": {
- *     "provider": "@daily-summary/openai",
+ *     "provider": "@work-summary/openai",
  *     "apiKey": "sk-...",
  *     "model": "gpt-4o",
  *     "baseUrl": "https://api.openai.com/v1"

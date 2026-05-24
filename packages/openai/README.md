@@ -1,25 +1,25 @@
-# @daily-summary/openai
+# @work-summary/openai
 
-OpenAI-compatible provider plugin for [daily-commit-summarizer](https://github.com/Vedant1202/daily-work-summarizer).
+OpenAI-compatible provider plugin for [work-summarizer](https://github.com/Vedant1202/work-summarizer).
 
 One adapter covers: **OpenAI**, **Ollama**, **Groq**, **Mistral**, **Together.ai**, **LM Studio**, and any other OpenAI Chat Completions-compatible endpoint.
 
 ## Install
 
 ```bash
-npm install -g @daily-summary/openai openai
+npm install -g @work-summary/openai openai
 ```
 
 ## Configuration
 
-Add `llm.provider` to your `.daily-summary.json` (repo-local) or `~/.daily-summary/config.json` (global):
+Add `llm.provider` to your `.work-summary.json` (repo-local) or `~/.work-summary/config.json` (global):
 
 ### OpenAI
 
 ```json
 {
   "llm": {
-    "provider": "@daily-summary/openai",
+    "provider": "@work-summary/openai",
     "apiKey": "sk-...",
     "model": "gpt-4o"
   }
@@ -31,7 +31,7 @@ Add `llm.provider` to your `.daily-summary.json` (repo-local) or `~/.daily-summa
 ```json
 {
   "llm": {
-    "provider": "@daily-summary/openai",
+    "provider": "@work-summary/openai",
     "apiKey": "ollama",
     "model": "llama3.2",
     "baseUrl": "http://localhost:11434/v1"
@@ -44,7 +44,7 @@ Add `llm.provider` to your `.daily-summary.json` (repo-local) or `~/.daily-summa
 ```json
 {
   "llm": {
-    "provider": "@daily-summary/openai",
+    "provider": "@work-summary/openai",
     "apiKey": "gsk_...",
     "model": "llama-3.1-70b-versatile",
     "baseUrl": "https://api.groq.com/openai/v1"
@@ -57,7 +57,7 @@ Add `llm.provider` to your `.daily-summary.json` (repo-local) or `~/.daily-summa
 ```json
 {
   "llm": {
-    "provider": "@daily-summary/openai",
+    "provider": "@work-summary/openai",
     "apiKey": "...",
     "model": "mistral-large-latest",
     "baseUrl": "https://api.mistral.ai/v1"
@@ -70,7 +70,7 @@ Add `llm.provider` to your `.daily-summary.json` (repo-local) or `~/.daily-summa
 ```json
 {
   "llm": {
-    "provider": "@daily-summary/openai",
+    "provider": "@work-summary/openai",
     "apiKey": "lm-studio",
     "model": "local-model",
     "baseUrl": "http://localhost:1234/v1"
@@ -83,7 +83,7 @@ Add `llm.provider` to your `.daily-summary.json` (repo-local) or `~/.daily-summa
 Any npm package or local file can be a provider. It must export a default factory function:
 
 ```typescript
-import type { LLMProvider, LLMProviderConfig } from 'daily-commit-summarizer';
+import type { LLMProvider, LLMProviderConfig } from 'work-summarizer';
 
 export default function createProvider(config: LLMProviderConfig): LLMProvider {
   return {
