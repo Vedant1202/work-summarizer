@@ -6,18 +6,18 @@ sidebar_position: 4
 
 # `config`
 
-View and modify the configuration for `daily-summary`.
+View and modify the configuration for `work-summary`.
 
 ```bash
-daily-summary config <subcommand> [options]
+work-summary config <subcommand> [options]
 ```
 
 ## `config init`
 
-Interactive setup wizard. Prompts for API keys and model settings, then saves them to `~/.daily-summary/.env`.
+Interactive setup wizard. Prompts for API keys and model settings, then saves them to `~/.work-summary/.env`.
 
 ```bash
-daily-summary config init
+work-summary config init
 ```
 
 Requires an interactive terminal (`stdin` must be a TTY). If you're in a non-interactive context, set values directly:
@@ -25,7 +25,7 @@ Requires an interactive terminal (`stdin` must be a TTY). If you're in a non-int
 ```bash
 export GEMINI_API_KEY="AIza..."
 # or
-daily-summary config set llm.apiKey "AIza..."
+work-summary config set llm.apiKey "AIza..."
 ```
 
 ### Wizard fields
@@ -47,7 +47,7 @@ Previously saved values are shown masked (e.g. `AIza***key`) — press Enter to 
 Print the full merged configuration with API keys masked.
 
 ```bash
-daily-summary config show
+work-summary config show
 ```
 
 ```json
@@ -61,7 +61,7 @@ daily-summary config show
     "model": "gemini-3.1-flash-lite"
   },
   "output": {
-    "dir": "/Users/you/.daily-summary/reports"
+    "dir": "/Users/you/.work-summary/reports"
   },
   "integrations": {
     "linear": {
@@ -83,19 +83,19 @@ daily-summary config show
 Read a single config value using a dot-path.
 
 ```bash
-daily-summary config get <key>
+work-summary config get <key>
 ```
 
 ### Examples
 
 ```bash
-daily-summary config get output.dir
-# → /Users/you/.daily-summary/reports
+work-summary config get output.dir
+# → /Users/you/.work-summary/reports
 
-daily-summary config get llm.summaryLength
+work-summary config get llm.summaryLength
 # → medium
 
-daily-summary config get integrations.linear.teamId
+work-summary config get integrations.linear.teamId
 # → abc123
 ```
 
@@ -103,45 +103,45 @@ daily-summary config get integrations.linear.teamId
 
 ## `config set <key> <value>`
 
-Write a config value. Defaults to repo-local (`.daily-summary.json`). Use `--global` for `~/.daily-summary/config.json`.
+Write a config value. Defaults to repo-local (`.work-summary.json`). Use `--global` for `~/.work-summary/config.json`.
 
 ```bash
-daily-summary config set <key> <value> [--global]
+work-summary config set <key> <value> [--global]
 ```
 
 ### Options
 
 | Flag | Description |
 |---|---|
-| `--global` | Write to `~/.daily-summary/config.json` instead of the repo-local `.daily-summary.json`. |
+| `--global` | Write to `~/.work-summary/config.json` instead of the repo-local `.work-summary.json`. |
 
 ### Examples
 
 ```bash
 # Repo-local settings
-daily-summary config set branch main
-daily-summary config set timeWindow 48h
-daily-summary config set output.format both
-daily-summary config set llm.summaryLength long
+work-summary config set branch main
+work-summary config set timeWindow 48h
+work-summary config set output.format both
+work-summary config set llm.summaryLength long
 
 # Integrations
-daily-summary config set integrations.linear.teamId "team-abc123"
-daily-summary config set integrations.docsRepo.path "/path/to/docs-repo"
-daily-summary config set integrations.mintlify.projectId "my-project"
+work-summary config set integrations.linear.teamId "team-abc123"
+work-summary config set integrations.docsRepo.path "/path/to/docs-repo"
+work-summary config set integrations.mintlify.projectId "my-project"
 
 # Global settings (shared across repos)
-daily-summary config set output.dir "~/.daily-summary/reports" --global
-daily-summary config set llm.summaryLength medium --global
+work-summary config set output.dir "~/.work-summary/reports" --global
+work-summary config set llm.summaryLength medium --global
 ```
 
 :::tip Secrets vs config
-API keys should live in `~/.daily-summary/.env` (managed by `config init`) or shell environment variables — **not** in JSON config files. Use `config set` for non-secret settings like `branch`, `timeWindow`, `output.dir`.
+API keys should live in `~/.work-summary/.env` (managed by `config init`) or shell environment variables — **not** in JSON config files. Use `config set` for non-secret settings like `branch`, `timeWindow`, `output.dir`.
 :::
 
 ## Config file locations
 
 | File | Scope | Written by |
 |---|---|---|
-| `~/.daily-summary/.env` | Global secrets | `config init` |
-| `~/.daily-summary/config.json` | Global non-secrets | `config set --global` |
-| `.daily-summary.json` | Repo-local | `config set` |
+| `~/.work-summary/.env` | Global secrets | `config init` |
+| `~/.work-summary/config.json` | Global non-secrets | `config set --global` |
+| `.work-summary.json` | Repo-local | `config set` |

@@ -20,14 +20,14 @@ sidebar_position: 2
 
 | File | Scope | Notes |
 |---|---|---|
-| `~/.daily-summary/.env` | Global | Created by `daily-summary config init`. Loaded first; shell variables override it. |
+| `~/.work-summary/.env` | Global | Created by `work-summary config init`. Loaded first; shell variables override it. |
 | `.env` | Repo-local | For source checkouts. Listed in `.gitignore` — do not commit. |
 | `.env.example` | Repo-local | Safe template to commit. Documents which variables are expected. |
 
 ### Load order
 
 ```
-~/.daily-summary/.env  →  ./.env  →  shell environment (highest)
+~/.work-summary/.env  →  ./.env  →  shell environment (highest)
 ```
 
 Each source only fills keys that aren't already set. If `GEMINI_API_KEY` is already exported in your shell, the `.env` file value is ignored.
@@ -37,15 +37,15 @@ Each source only fills keys that aren't already set. If `GEMINI_API_KEY` is alre
 ### Option 1 — `config init` (recommended for first-time setup)
 
 ```bash
-daily-summary config init
+work-summary config init
 ```
 
-Writes to `~/.daily-summary/.env`.
+Writes to `~/.work-summary/.env`.
 
 ### Option 2 — Manual env file
 
 ```bash
-# ~/.daily-summary/.env
+# ~/.work-summary/.env
 GEMINI_API_KEY=AIza...
 GEMINI_MODEL=gemini-3.1-flash-lite
 LINEAR_API_KEY=lin_api_...
@@ -65,7 +65,7 @@ Add to your `~/.zshrc` or `~/.bashrc` for persistence.
 ### Option 4 — `config set` (non-secrets only for JSON config; for API keys use env files)
 
 ```bash
-daily-summary config set integrations.mintlify.projectId "my-project"
+work-summary config set integrations.mintlify.projectId "my-project"
 ```
 
 ## Gemini Model Options

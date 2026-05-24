@@ -8,7 +8,7 @@ slug: /introduction
 
 # Introduction
 
-`daily-work-summarizer` is a TypeScript CLI that turns local Git history into polished daily stand-up summaries. It scans commits for a configurable time window, filters noise, asks Gemini to summarise the work, and exports Markdown or HTML reports — all from a single command.
+`work-summarizer` is a TypeScript CLI that turns local Git history into polished daily stand-up summaries. It scans commits for a configurable time window, filters noise, asks Gemini to summarise the work, and exports Markdown or HTML reports — all from a single command.
 
 ## What It Does
 
@@ -25,7 +25,7 @@ slug: /introduction
 
 ```mermaid
 flowchart TD
-  A["CLI: daily-summary run"] --> B["Load configuration"]
+  A["CLI: work-summary run"] --> B["Load configuration"]
   B --> C["Read git commits"]
   C --> D["Normalize diffs and categorize commits"]
   D --> E["Generate summary with Gemini"]
@@ -47,7 +47,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["CLI: daily-summary docs"] --> B["Load configuration"]
+  A["CLI: work-summary docs"] --> B["Load configuration"]
   B --> C["Read git commits"]
   C --> D["Normalize diffs"]
   D --> E["Detect documentation signals"]
@@ -72,9 +72,9 @@ flowchart TD
 ```mermaid
 flowchart TD
   A["Built-in defaults"] --> F["Merged config"]
-  B["~/.daily-summary/config.json"] --> F
-  C[".daily-summary.json (repo-local)"] --> F
-  D["~/.daily-summary/.env + ./.env"] --> E["process.env vars"]
+  B["~/.work-summary/config.json"] --> F
+  C[".work-summary.json (repo-local)"] --> F
+  D["~/.work-summary/.env + ./.env"] --> E["process.env vars"]
   E --> F
   F --> G["Runtime config"]
 ```
@@ -85,7 +85,7 @@ Resolution priority (lowest → highest): built-in defaults → global JSON → 
 
 ```mermaid
 flowchart TD
-  A["CLI: daily-summary ui"] --> B["Express server :7331"]
+  A["CLI: work-summary ui"] --> B["Express server :7331"]
   B --> C["Serves React SPA"]
   C --> D["Browser opens http://localhost:7331"]
   D --> E{"Page"}
@@ -100,18 +100,18 @@ flowchart TD
 
 | Output | Default location |
 |---|---|
-| Stand-up reports | `~/.daily-summary/reports/<date>-<repo>.md` and optionally `.html` |
-| Documentation tasks | `~/.daily-summary/doc-tasks/<date>-<repo>.md` and optionally `.json` |
-| Global secrets | `~/.daily-summary/.env` |
-| Global config | `~/.daily-summary/config.json` |
-| Mintlify deploy cache | `~/.daily-summary/mintlify-deployments.json` |
-| Schedule logs | `~/.daily-summary/logs/` |
+| Stand-up reports | `~/.work-summary/reports/<date>-<repo>.md` and optionally `.html` |
+| Documentation tasks | `~/.work-summary/doc-tasks/<date>-<repo>.md` and optionally `.json` |
+| Global secrets | `~/.work-summary/.env` |
+| Global config | `~/.work-summary/config.json` |
+| Mintlify deploy cache | `~/.work-summary/mintlify-deployments.json` |
+| Schedule logs | `~/.work-summary/logs/` |
 
 ## Source Layout
 
 ```
 src/
-├── bin/daily-summary.ts       CLI entry point
+├── bin/work-summary.ts       CLI entry point
 ├── cli/
 │   ├── index.ts               Commander command registration
 │   ├── review.ts              Editor-based review helper

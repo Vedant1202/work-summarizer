@@ -9,7 +9,7 @@ sidebar_position: 1
 Scan commits in a git repository and generate an AI-powered stand-up summary.
 
 ```bash
-daily-summary run [options]
+work-summary run [options]
 ```
 
 ## Flags
@@ -37,25 +37,25 @@ daily-summary run [options]
 ### Basic — last 24 hours
 
 ```bash
-daily-summary run --since 24h --no-edit
+work-summary run --since 24h --no-edit
 ```
 
 ### Scan a different repo, last week, HTML output
 
 ```bash
-daily-summary run --repo ~/Projects/backend-api --since 7d --format both --no-edit
+work-summary run --repo ~/Projects/backend-api --since 7d --format both --no-edit
 ```
 
 ### With Linear issue enrichment
 
 ```bash
-daily-summary run --since 1w --with-linear --no-edit
+work-summary run --since 1w --with-linear --no-edit
 ```
 
 ### Review in editor before saving
 
 ```bash
-daily-summary run --since 24h --length long
+work-summary run --since 24h --length long
 ```
 
 Opens the generated report in `$EDITOR`. Save and close to export; cancel by exiting without changes and answering `n` at the prompt.
@@ -160,14 +160,14 @@ _2 areas may need documentation updates._
 | HIGH     | new-api    | src/auth/provider.ts  | new export: OAuthProvider      |
 | MED      | cli-option | src/cli/commands/run.ts | new CLI option added          |
 
-> Run `daily-summary docs` for a full interactive review.
+> Run `work-summary docs` for a full interactive review.
 ```
 
 ## Output Location
 
-Reports are saved to `~/.daily-summary/reports/` as `<date>-<repo-name>.md` (and `.html` when applicable). View them with:
+Reports are saved to `~/.work-summary/reports/` as `<date>-<repo-name>.md` (and `.html` when applicable). View them with:
 
 ```bash
-daily-summary history        # list all reports
-daily-summary history --last # open the most recent
+work-summary history        # list all reports
+work-summary history --last # open the most recent
 ```

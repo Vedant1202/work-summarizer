@@ -9,8 +9,8 @@ sidebar_position: 2
 Detect commits that have documentation implications and review them interactively.
 
 ```bash
-daily-summary docs [options]
-daily-summary docs push [options]
+work-summary docs [options]
+work-summary docs push [options]
 ```
 
 ## Flags
@@ -95,21 +95,21 @@ Use `--no-llm` to skip this and use templates — faster and works without a Gem
 
 ```bash
 # Detect and review doc tasks from the last 7 days
-daily-summary docs --since 7d
+work-summary docs --since 7d
 
 # Auto-accept everything, export both Markdown and JSON
-daily-summary docs --since 7d --no-review --format both
+work-summary docs --since 7d --no-review --format both
 
 # Use templates (no LLM), review, then create Linear issues
-daily-summary docs --since 7d --no-llm --create-issues
+work-summary docs --since 7d --no-llm --create-issues
 
 # Push today's accepted tasks into a local docs repo
-daily-summary docs push --path ~/Projects/my-docs --auto-commit
+work-summary docs push --path ~/Projects/my-docs --auto-commit
 ```
 
 ## Output
 
-Accepted tasks are saved to `~/.daily-summary/doc-tasks/<date>-<repo>.md`:
+Accepted tasks are saved to `~/.work-summary/doc-tasks/<date>-<repo>.md`:
 
 ```markdown
 # Documentation Tasks — 2026-05-18

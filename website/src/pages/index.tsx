@@ -63,7 +63,7 @@ const features: FeatureItem[] = [
     description: (
       <>
         Export reports as Markdown, styled HTML, or both. Reports are saved
-        to <code>~/.daily-summary/reports/</code> and accessible via
+        to <code>~/.work-summary/reports/</code> and accessible via
         the <code>history</code> and <code>export</code> commands.
       </>
     ),
@@ -73,8 +73,8 @@ const features: FeatureItem[] = [
     emoji: '⚡',
     description: (
       <>
-        Run <code>daily-summary config init</code> for a 30-second setup
-        wizard, then <code>daily-summary run</code>. Supports repo-local and
+        Run <code>work-summary config init</code> for a 30-second setup
+        wizard, then <code>work-summary run</code>. Supports repo-local and
         global config files for team-wide defaults.
       </>
     ),
@@ -118,7 +118,7 @@ function HomepageHero() {
         <p className="hero__subtitle">{siteConfig.tagline}</p>
 
         <div className={styles.quickInstall}>
-          <code className={styles.installCmd}>npm install -g daily-commit-summarizer</code>
+          <code className={styles.installCmd}>npm install -g work-summarizer</code>
         </div>
 
         <div className={styles.buttons}>
@@ -129,7 +129,7 @@ function HomepageHero() {
           </Link>
           <Link
             className={clsx('button button--outline button--lg', styles.buttonGhost)}
-            to="https://github.com/Vedant1202/daily-work-summarizer">
+            to="https://github.com/Vedant1202/work-summarizer">
             View on GitHub
           </Link>
         </div>
@@ -141,7 +141,7 @@ function HomepageHero() {
 export default function Home(): React.ReactElement {
   return (
     <Layout
-      title="daily-commit-summarizer"
+      title="work-summarizer"
       description="CLI that turns git history into polished daily stand-up summaries using Gemini AI, with Linear integration and doc-task detection.">
       <HomepageHero />
       <main>
@@ -152,7 +152,7 @@ export default function Home(): React.ReactElement {
               <div className="col col--6">
                 <Heading as="h2">From git log to stand-up in seconds</Heading>
                 <p>
-                  Point <code>daily-summary run</code> at any local repo, choose your
+                  Point <code>work-summary run</code> at any local repo, choose your
                   time window, and get a structured report instantly. No server,
                   no account required — just a Gemini API key.
                 </p>
@@ -167,12 +167,12 @@ export default function Home(): React.ReactElement {
                 </Link>
               </div>
               <div className="col col--6">
-                <pre className={styles.exampleOutput}>{`$ daily-summary run --since 24h --no-edit
+                <pre className={styles.exampleOutput}>{`$ work-summary run --since 24h --no-edit
 
 Scanning commits on branch "main" since 24h...
 Found 6 commit(s). Normalizing diffs...
 Summarizing with gemini-2.0-flash-lite (medium)...
-Report saved to: ~/.daily-summary/reports/2026-05-18-myapp.md
+Report saved to: ~/.work-summary/reports/2026-05-18-myapp.md
 
 ---
 

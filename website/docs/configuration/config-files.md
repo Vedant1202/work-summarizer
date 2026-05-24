@@ -6,13 +6,13 @@ sidebar_position: 3
 
 # Config Files
 
-## Repo-local — `.daily-summary.json`
+## Repo-local — `.work-summary.json`
 
 Place this in the root of any git repository to set project-specific defaults. Commit it to share settings with teammates.
 
 ```bash
-daily-summary config set branch main        # creates or updates .daily-summary.json
-daily-summary config set timeWindow 48h
+work-summary config set branch main        # creates or updates .work-summary.json
+work-summary config set timeWindow 48h
 ```
 
 ### Full example with annotations
@@ -41,7 +41,7 @@ daily-summary config set timeWindow 48h
 
   "output": {
     "format": "both",
-    "dir": "~/.daily-summary/reports"
+    "dir": "~/.work-summary/reports"
   },
 
   "integrations": {
@@ -76,9 +76,9 @@ daily-summary config set timeWindow 48h
 
 ---
 
-## Global — `~/.daily-summary/config.json`
+## Global — `~/.work-summary/config.json`
 
-Use this for non-secret preferences you want across all repos. Written by `daily-summary config set --global`.
+Use this for non-secret preferences you want across all repos. Written by `work-summary config set --global`.
 
 ```json
 {
@@ -86,7 +86,7 @@ Use this for non-secret preferences you want across all repos. Written by `daily
     "summaryLength": "medium"
   },
   "output": {
-    "dir": "~/.daily-summary/reports",
+    "dir": "~/.work-summary/reports",
     "format": "markdown"
   }
 }
@@ -94,9 +94,9 @@ Use this for non-secret preferences you want across all repos. Written by `daily
 
 ---
 
-## Global env — `~/.daily-summary/.env`
+## Global env — `~/.work-summary/.env`
 
-Written by `daily-summary config init`. Contains API keys and the model name.
+Written by `work-summary config init`. Contains API keys and the model name.
 
 ```bash
 GEMINI_API_KEY=AIza...

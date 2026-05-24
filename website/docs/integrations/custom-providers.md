@@ -6,7 +6,7 @@ sidebar_position: 3
 
 # Custom LLM Providers
 
-`daily-summary` ships with Gemini as the default provider, but any LLM can be plugged in via the provider plugin system.
+`work-summary` ships with Gemini as the default provider, but any LLM can be plugged in via the provider plugin system.
 
 ## How It Works
 
@@ -15,7 +15,7 @@ Set `llm.provider` in your config to an npm package name or a local file path. T
 ```json
 {
   "llm": {
-    "provider": "@daily-summary/openai",
+    "provider": "@work-summary/openai",
     "apiKey": "sk-...",
     "model": "gpt-4o"
   }
@@ -26,14 +26,14 @@ When `llm.provider` is omitted or set to `"gemini"`, the built-in Gemini adapter
 
 ---
 
-## `@daily-summary/openai`
+## `@work-summary/openai`
 
 The official OpenAI-compatible adapter covers **OpenAI, Ollama, Groq, Mistral, Together.ai, LM Studio**, and any other endpoint that speaks the OpenAI Chat Completions format.
 
 ### Install
 
 ```bash
-npm install -g @daily-summary/openai openai
+npm install -g @work-summary/openai openai
 ```
 
 ### Usage
@@ -43,7 +43,7 @@ npm install -g @daily-summary/openai openai
 ```json
 {
   "llm": {
-    "provider": "@daily-summary/openai",
+    "provider": "@work-summary/openai",
     "apiKey": "sk-...",
     "model": "gpt-4o"
   }
@@ -55,7 +55,7 @@ npm install -g @daily-summary/openai openai
 ```json
 {
   "llm": {
-    "provider": "@daily-summary/openai",
+    "provider": "@work-summary/openai",
     "apiKey": "ollama",
     "model": "llama3.2",
     "baseUrl": "http://localhost:11434/v1"
@@ -68,7 +68,7 @@ npm install -g @daily-summary/openai openai
 ```json
 {
   "llm": {
-    "provider": "@daily-summary/openai",
+    "provider": "@work-summary/openai",
     "apiKey": "gsk_...",
     "model": "llama-3.1-70b-versatile",
     "baseUrl": "https://api.groq.com/openai/v1"
@@ -81,7 +81,7 @@ npm install -g @daily-summary/openai openai
 ```json
 {
   "llm": {
-    "provider": "@daily-summary/openai",
+    "provider": "@work-summary/openai",
     "apiKey": "...",
     "model": "mistral-large-latest",
     "baseUrl": "https://api.mistral.ai/v1"

@@ -16,8 +16,8 @@ sidebar_position: 5
 ## Local Setup
 
 ```bash
-git clone https://github.com/Vedant1202/daily-work-summarizer.git
-cd daily-work-summarizer
+git clone https://github.com/Vedant1202/work-summarizer.git
+cd work-summarizer
 npm install
 cp .env.example .env
 ```
@@ -43,8 +43,8 @@ npm run dev -- docs --since 7d --no-review --no-llm
 ## Build & Run Compiled Output
 
 ```bash
-npm run build        # tsc → dist/, marks dist/bin/daily-summary.js executable
-npm start -- doctor  # runs node dist/bin/daily-summary.js
+npm run build        # tsc → dist/, marks dist/bin/work-summary.js executable
+npm start -- doctor  # runs node dist/bin/work-summary.js
 ```
 
 ## Testing
@@ -71,7 +71,7 @@ npx vitest
 ```
 src/
 ├── bin/
-│   └── daily-summary.ts     Entry point — imports cli/index
+│   └── work-summary.ts     Entry point — imports cli/index
 ├── cli/
 │   ├── index.ts             Commander program setup & command registration
 │   ├── review.ts            Editor review helper (opens $EDITOR, handles no-changes prompt)

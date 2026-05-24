@@ -9,7 +9,7 @@ sidebar_position: 5
 Validate your configuration and test live API connectivity.
 
 ```bash
-daily-summary doctor
+work-summary doctor
 ```
 
 Run `doctor` after initial setup or whenever a command fails unexpectedly — it checks every required and optional credential and performs live API pings so you know exactly what works.
@@ -48,21 +48,21 @@ Testing Gemini connection...
 Testing Linear connection...
   ✓ Linear API            reachable — 2 team(s): ENG, DESIGN
 
-Setup looks good. Run: daily-summary run --since 24h --no-edit
+Setup looks good. Run: work-summary run --since 24h --no-edit
 ```
 
 ### Missing Gemini key
 
 ```
 Checking configuration...
-  ✗ GEMINI_API_KEY        not set — run: daily-summary config init
-  ✗ GEMINI_MODEL          not set — run: daily-summary config init
+  ✗ GEMINI_API_KEY        not set — run: work-summary config init
+  ✗ GEMINI_MODEL          not set — run: work-summary config init
   ...
 
 Testing Gemini connection...
   - Gemini API            skipped (missing key or model)
 
-Setup incomplete. Run: daily-summary config init
+Setup incomplete. Run: work-summary config init
 ```
 
 ## Output symbols
@@ -79,6 +79,6 @@ When Linear is configured but `teamId` is not yet set, `doctor` prints the team 
 
 ```
   Tip: save your team ID with:
-    daily-summary config set integrations.linear.teamId team-abc123  # Engineering
-    daily-summary config set integrations.linear.teamId team-xyz789  # Design
+    work-summary config set integrations.linear.teamId team-abc123  # Engineering
+    work-summary config set integrations.linear.teamId team-xyz789  # Design
 ```

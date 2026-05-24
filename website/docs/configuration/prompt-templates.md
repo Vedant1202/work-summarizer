@@ -6,23 +6,23 @@ sidebar_position: 4
 
 # Prompt Templates
 
-By default, `daily-summary` uses a built-in prompt tuned for Gemini. You can replace it with your own Mustache template to change the tone, structure, or add team-specific context — and the same template works with any LLM provider.
+By default, `work-summary` uses a built-in prompt tuned for Gemini. You can replace it with your own Mustache template to change the tone, structure, or add team-specific context — and the same template works with any LLM provider.
 
 ## Quick Start
 
-1. Create a template file, e.g. `~/.daily-summary/my-prompt.mustache`
+1. Create a template file, e.g. `~/.work-summary/my-prompt.mustache`
 2. Set `llm.promptTemplate` in your config:
 
 ```bash
-daily-summary config set llm.promptTemplate ~/.daily-summary/my-prompt.mustache --global
+work-summary config set llm.promptTemplate ~/.work-summary/my-prompt.mustache --global
 ```
 
-Or directly in `~/.daily-summary/config.json`:
+Or directly in `~/.work-summary/config.json`:
 
 ```json
 {
   "llm": {
-    "promptTemplate": "~/.daily-summary/my-prompt.mustache"
+    "promptTemplate": "~/.work-summary/my-prompt.mustache"
   }
 }
 ```
@@ -152,5 +152,5 @@ Keep the LLM out of it entirely — just format the raw commits.
 
 - Use `{{{ }}}` (triple braces) for variables that contain newlines or special characters to prevent Mustache's HTML escaping.
 - The `promptTemplate` path supports `~` expansion (e.g. `~/my-template.mustache`).
-- Share templates across your team by committing the template file and setting `llm.promptTemplate` in `.daily-summary.json`.
+- Share templates across your team by committing the template file and setting `llm.promptTemplate` in `.work-summary.json`.
 - Different models respond differently — a template tuned for GPT-4 may need adjustment for Llama or Mistral.

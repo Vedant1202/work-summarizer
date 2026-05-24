@@ -9,7 +9,7 @@ sidebar_position: 3
 Trigger and track Mintlify documentation deployments from the CLI.
 
 ```bash
-daily-summary mintlify <subcommand> [options]
+work-summary mintlify <subcommand> [options]
 ```
 
 ## Prerequisites
@@ -20,8 +20,8 @@ You need a Mintlify API key and a project ID. Configure them with:
 export MINTLIFY_API_KEY="mint_..."
 export MINTLIFY_PROJECT_ID="your-project-id"
 # or persist them:
-daily-summary config set integrations.mintlify.apiKey "mint_..."
-daily-summary config set integrations.mintlify.projectId "your-project-id"
+work-summary config set integrations.mintlify.apiKey "mint_..."
+work-summary config set integrations.mintlify.projectId "your-project-id"
 ```
 
 ---
@@ -31,7 +31,7 @@ daily-summary config set integrations.mintlify.projectId "your-project-id"
 Trigger a new Mintlify deployment and (by default) poll until it completes.
 
 ```bash
-daily-summary mintlify trigger [options]
+work-summary mintlify trigger [options]
 ```
 
 ### Flags
@@ -47,16 +47,16 @@ daily-summary mintlify trigger [options]
 
 ```bash
 # Preview deploy on current branch (polls to completion)
-daily-summary mintlify trigger
+work-summary mintlify trigger
 
 # Production deploy
-daily-summary mintlify trigger --production
+work-summary mintlify trigger --production
 
 # Preview on a specific branch
-daily-summary mintlify trigger --branch feature/new-api-docs
+work-summary mintlify trigger --branch feature/new-api-docs
 
 # Kick off a deploy and exit immediately (for CI pipelines)
-daily-summary mintlify trigger --production --fire-and-forget
+work-summary mintlify trigger --production --fire-and-forget
 ```
 
 ### Sample Output
@@ -73,7 +73,7 @@ Triggering Mintlify preview deployment (branch: feature/new-api-docs)...
   Summary:   Deployed successfully
   Files:     +3 ~7 -1
 
-  Deployment cached. Run: daily-summary mintlify history
+  Deployment cached. Run: work-summary mintlify history
 ```
 
 ---
@@ -83,7 +83,7 @@ Triggering Mintlify preview deployment (branch: feature/new-api-docs)...
 Check the status of any deployment by its status ID.
 
 ```bash
-daily-summary mintlify status <statusId> [options]
+work-summary mintlify status <statusId> [options]
 ```
 
 ### Flags
@@ -95,7 +95,7 @@ daily-summary mintlify status <statusId> [options]
 ### Example
 
 ```bash
-daily-summary mintlify status 64a2fc3e8a0b12d3e4f56789
+work-summary mintlify status 64a2fc3e8a0b12d3e4f56789
 ```
 
 ### Sample Output
@@ -120,10 +120,10 @@ Deployment Status
 List cached deployment records.
 
 ```bash
-daily-summary mintlify history [options]
+work-summary mintlify history [options]
 ```
 
-Records are stored locally at `~/.daily-summary/mintlify-deployments.json`.
+Records are stored locally at `~/.work-summary/mintlify-deployments.json`.
 
 ### Flags
 
@@ -152,7 +152,7 @@ When `--fire-and-forget` is used, the `statusId` is saved to the cache right awa
 Summarise Mintlify deployments over a time window using Gemini.
 
 ```bash
-daily-summary mintlify summary [options]
+work-summary mintlify summary [options]
 ```
 
 ### Flags
@@ -166,7 +166,7 @@ daily-summary mintlify summary [options]
 ### Example
 
 ```bash
-daily-summary mintlify summary --since 7d
+work-summary mintlify summary --since 7d
 ```
 
 ### Sample Output

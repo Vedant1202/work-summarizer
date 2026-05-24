@@ -3,15 +3,15 @@ import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
-  title: 'daily-work-summarizer',
-  tagline: 'Turn git history into daily stand-up summaries with AI',
+  title: 'work-summarizer',
+  tagline: 'Turn git history into work summaries with AI',
   favicon: 'img/logo.svg',
 
   url: 'https://Vedant1202.github.io',
-  baseUrl: '/daily-work-summarizer/',
+  baseUrl: '/work-summarizer/',
 
   organizationName: 'Vedant1202',
-  projectName: 'daily-work-summarizer',
+  projectName: 'work-summarizer',
   trailingSlash: false,
 
   onBrokenLinks: 'throw',
@@ -34,7 +34,7 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           editUrl:
-            'https://github.com/Vedant1202/daily-work-summarizer/edit/main/website/',
+            'https://github.com/Vedant1202/work-summarizer/edit/main/website/',
         },
         blog: false,
         theme: {
@@ -46,9 +46,9 @@ const config: Config = {
 
   themeConfig: {
     navbar: {
-      title: 'daily-summary',
+      title: 'work-summary',
       logo: {
-        alt: 'daily-summary logo',
+        alt: 'work-summary logo',
         src: 'img/logo.svg',
       },
       items: [
@@ -59,12 +59,12 @@ const config: Config = {
           label: 'Docs',
         },
         {
-          href: 'https://github.com/Vedant1202/daily-work-summarizer',
+          href: 'https://github.com/Vedant1202/work-summarizer',
           label: 'GitHub',
           position: 'right',
         },
         {
-          href: 'https://www.npmjs.com/package/daily-commit-summarizer',
+          href: 'https://www.npmjs.com/package/work-summarizer',
           label: 'npm',
           position: 'right',
         },
@@ -94,15 +94,15 @@ const config: Config = {
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/Vedant1202/daily-work-summarizer',
+              href: 'https://github.com/Vedant1202/work-summarizer',
             },
             {
               label: 'npm',
-              href: 'https://www.npmjs.com/package/daily-commit-summarizer',
+              href: 'https://www.npmjs.com/package/work-summarizer',
             },
             {
               label: 'Report an issue',
-              href: 'https://github.com/Vedant1202/daily-work-summarizer/issues',
+              href: 'https://github.com/Vedant1202/work-summarizer/issues',
             },
           ],
         },

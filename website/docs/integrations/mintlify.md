@@ -6,7 +6,7 @@ sidebar_position: 2
 
 # Mintlify Integration
 
-`daily-summary` can trigger, poll, and track [Mintlify](https://mintlify.com) documentation deployments from the CLI. Deployment records are cached locally and can be summarised with Gemini.
+`work-summary` can trigger, poll, and track [Mintlify](https://mintlify.com) documentation deployments from the CLI. Deployment records are cached locally and can be summarised with Gemini.
 
 ## Setup
 
@@ -20,10 +20,10 @@ sidebar_position: 2
 **Option A — `config init` (recommended)**
 
 ```bash
-daily-summary config init
+work-summary config init
 ```
 
-The setup wizard prompts for `MINTLIFY_API_KEY` and `MINTLIFY_PROJECT_ID` alongside your other credentials and saves them to `~/.daily-summary/.env`.
+The setup wizard prompts for `MINTLIFY_API_KEY` and `MINTLIFY_PROJECT_ID` alongside your other credentials and saves them to `~/.work-summary/.env`.
 
 **Option B — manual**
 
@@ -31,8 +31,8 @@ The setup wizard prompts for `MINTLIFY_API_KEY` and `MINTLIFY_PROJECT_ID` alongs
 export MINTLIFY_API_KEY="mint_..."
 export MINTLIFY_PROJECT_ID="my-project-id"
 # or persist:
-daily-summary config set integrations.mintlify.apiKey "mint_..."
-daily-summary config set integrations.mintlify.projectId "my-project-id"
+work-summary config set integrations.mintlify.apiKey "mint_..."
+work-summary config set integrations.mintlify.projectId "my-project-id"
 ```
 
 ---
@@ -42,7 +42,7 @@ daily-summary config set integrations.mintlify.projectId "my-project-id"
 ### Preview deployment (default)
 
 ```bash
-daily-summary mintlify trigger
+work-summary mintlify trigger
 ```
 
 Uses the current branch (auto-detected from git). Polls until the deployment finishes and prints the result.
@@ -50,7 +50,7 @@ Uses the current branch (auto-detected from git). Polls until the deployment fin
 ### Production deployment
 
 ```bash
-daily-summary mintlify trigger --production
+work-summary mintlify trigger --production
 ```
 
 ### CI / fire-and-forget
@@ -58,18 +58,18 @@ daily-summary mintlify trigger --production
 For CI pipelines where you don't want to block on the result:
 
 ```bash
-daily-summary mintlify trigger --production --fire-and-forget
+work-summary mintlify trigger --production --fire-and-forget
 # Output:
 #   statusId:   64a2fc3e8a0b12d3e4f56789
 #   previewUrl: https://preview.mintlify.app/...
 ```
 
-The `statusId` is saved to `~/.daily-summary/mintlify-deployments.json` immediately with `finalStatus: queued`. The record updates to `success` or `failure` in the background once polling completes — so `mintlify history` always reflects in-progress deployments.
+The `statusId` is saved to `~/.work-summary/mintlify-deployments.json` immediately with `finalStatus: queued`. The record updates to `success` or `failure` in the background once polling completes — so `mintlify history` always reflects in-progress deployments.
 
 You can check the result later:
 
 ```bash
-daily-summary mintlify status 64a2fc3e8a0b12d3e4f56789
+work-summary mintlify status 64a2fc3e8a0b12d3e4f56789
 ```
 
 ---
@@ -79,7 +79,7 @@ daily-summary mintlify status 64a2fc3e8a0b12d3e4f56789
 Every completed `mintlify trigger` run appends a record to:
 
 ```
-~/.daily-summary/mintlify-deployments.json
+~/.work-summary/mintlify-deployments.json
 ```
 
 Each record stores the status ID, project ID, trigger time, mode, branch, final status, subdomain, Mintlify summary, and file-change data.
@@ -87,8 +87,8 @@ Each record stores the status ID, project ID, trigger time, mode, branch, final 
 View the cache:
 
 ```bash
-daily-summary mintlify history
-daily-summary mintlify history --limit 50
+work-summary mintlify history
+work-summary mintlify history --limit 50
 ```
 
 ---
@@ -96,7 +96,7 @@ daily-summary mintlify history --limit 50
 ## LLM Deployment Summary
 
 ```bash
-daily-summary mintlify summary --since 7d
+work-summary mintlify summary --since 7d
 ```
 
 Gemini reads the cached deployment records for the time window and produces a bullet-point summary of what changed in the docs. If file-change data is available, it names specific files and sections:
@@ -125,14 +125,14 @@ A typical docs-update workflow:
 git push origin feature/new-api-docs
 
 # 2. Trigger a preview deploy
-daily-summary mintlify trigger --branch feature/new-api-docs
+work-summary mintlify trigger --branch feature/new-api-docs
 
 # 3. Review the preview URL printed in the output
 # 4. Once approved, deploy to production
-daily-summary mintlify trigger --production
+work-summary mintlify trigger --production
 
 # 5. Get an AI summary of this week's doc changes
-daily-summary mintlify summary --since 7d
+work-summary mintlify summary --since 7d
 ```
 
 ---
@@ -141,8 +141,8 @@ daily-summary mintlify summary --since 7d
 
 | Problem | Fix |
 |---|---|
-| `MINTLIFY_API_KEY is not set` | Export the variable or run `daily-summary config set integrations.mintlify.apiKey`. |
-| `Mintlify project ID is not set` | Pass `--project-id <id>` or run `daily-summary config set integrations.mintlify.projectId`. |
+| `MINTLIFY_API_KEY is not set` | Export the variable or run `work-summary config set integrations.mintlify.apiKey`. |
+| `Mintlify project ID is not set` | Pass `--project-id <id>` or run `work-summary config set integrations.mintlify.projectId`. |
 | `Could not determine branch for preview` | Pass `--branch <name>` explicitly. |
 | Deploy times out | The default timeout is 5 minutes. For large sites, check the Mintlify dashboard and use `mintlify status` to poll manually. |
 | No file data in summary | Deployment was API-triggered; Mintlify doesn't expose commit data for these. Use `--raw` for activity-level output. |
