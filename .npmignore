@@ -8,6 +8,6 @@ tsconfig.json
 agent-skills/
 install.sh
 claude-install.log
-*.daily-summary.json
+*.work-summary.json
 website/
 .github/
