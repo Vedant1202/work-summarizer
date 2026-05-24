@@ -140,7 +140,30 @@ export async function runCommand(options: RunOptions): Promise<void> {
 
   console.log(`Summarizing with ${config.llm.model ?? config.llm.provider ?? 'gemini'} (${config.llm.summaryLength})...`);
   const provider = createProvider(config.llm);
-  const summary = await summarizeCommits(provider, normalized, config.llm.summaryLength, config.llm.promptTemplate);
+
+  const humanCommits = normalized.filter((c) => !c.isAgentAssisted);
+  const agentCommits = normalized.filter((c) => c.isAgentAssisted);
+
+  if (agentCommits.length > 0) {
+    console.log(`Detected ${agentCommits.length} agent-assisted commit(s) — generating separate summaries...`);
+  }
+
+  const summary = await summarizeCommits(
+    provider,
+    humanCommits.length > 0 ? humanCommits : normalized,
+    config.llm.summaryLength,
+    config.llm.promptTemplate,
+  );
+
+  const agentSummary = agentCommits.length > 0
+    ? await summarizeCommits(
+        provider,
+        agentCommits,
+        config.llm.summaryLength,
+        config.llm.promptTemplate,
+        'These commits were made with AI agent assistance.',
+      )
+    : undefined;
 
   let ticketGroups: TicketGroup[] | undefined;
   if (options.withLinear) {
@@ -164,7 +187,7 @@ export async function runCommand(options: RunOptions): Promise<void> {
 
   const docSignals = detectDocSignals(normalized);
 
-  let report = generateReport(normalized, summary, config, ticketGroups, docSignals.length > 0 ? docSignals : undefined);
+  let report = generateReport(normalized, summary, config, ticketGroups, docSignals.length > 0 ? docSignals : undefined, agentSummary);
 
   if (options.edit) {
     console.log('Opening in editor for review...');

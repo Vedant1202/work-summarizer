@@ -12,6 +12,10 @@ export interface Report {
   commitCount: number;
   summary: string;
   commits: NormalizedCommit[];
+  humanCommits: NormalizedCommit[];
+  agentCommits: NormalizedCommit[];
+  humanSummary?: string;
+  agentSummary?: string;
   ticketGroups?: TicketGroup[];
   content: string;
 }
@@ -121,6 +125,7 @@ function buildMarkdown(
   ticketGroups?: TicketGroup[],
   docSignals?: DocSignal[],
   mintlifyConfigured?: boolean,
+  agentSummary?: string,
 ): string {
   const ticketSection = ticketGroups && ticketGroups.length > 0
     ? `\n---\n\n## By Issue\n\n${buildTicketSection(ticketGroups)}\n`
@@ -130,21 +135,29 @@ function buildMarkdown(
     ? buildDocsImpactSection(docSignals, mintlifyConfigured ?? false)
     : '';
 
+  const humanCommits = commits.filter((c) => !c.isAgentAssisted);
+  const agentCommits = commits.filter((c) => c.isAgentAssisted);
+  const hasTwoSections = agentSummary !== undefined && agentCommits.length > 0;
+
+  const summarySection = hasTwoSections
+    ? `## 👤 Human Commits\n\n${summary}\n\n---\n\n## 🤖 Agent-Assisted Commits\n\n${agentSummary}`
+    : `## Summary\n\n${summary}`;
+
+  const commitsSection = hasTwoSections
+    ? `## Human Commits by Category\n\n${buildCommitsByCategory(humanCommits)}\n\n---\n\n## Agent-Assisted Commits by Category\n\n${buildCommitsByCategory(agentCommits)}`
+    : `## Commits by Category\n\n${buildCommitsByCategory(commits)}`;
+
   return `# Daily Stand-up — ${date}
 
 **Repo:** ${repoName} | **Branch:** ${branch} | **Period:** last ${timeWindow} | **Commits:** ${commits.length}
 
 ---
 
-## Summary
-
-${summary}
+${summarySection}
 
 ---
 
-## Commits by Category
-
-${buildCommitsByCategory(commits)}
+${commitsSection}
 ${ticketSection}${docsImpactSection}`.trim() + '\n';
 }
 
@@ -154,11 +167,27 @@ export function generateReport(
   config: Config,
   ticketGroups?: TicketGroup[],
   docSignals?: DocSignal[],
+  agentSummary?: string,
 ): Report {
   const date = formatDate();
   const repoName = path.basename(path.resolve(config.repoPath));
   const mintlifyConfigured = !!(config.integrations?.mintlify?.apiKey && config.integrations?.mintlify?.projectId);
-  const content = buildMarkdown(date, repoName, config.branch, config.timeWindow, commits, summary, ticketGroups, docSignals, mintlifyConfigured);
+
+  const humanCommits = commits.filter((c) => !c.isAgentAssisted);
+  const agentCommits = commits.filter((c) => c.isAgentAssisted);
+
+  const content = buildMarkdown(
+    date,
+    repoName,
+    config.branch,
+    config.timeWindow,
+    commits,
+    summary,
+    ticketGroups,
+    docSignals,
+    mintlifyConfigured,
+    agentSummary,
+  );
 
   return {
     date,
@@ -168,6 +197,10 @@ export function generateReport(
     commitCount: commits.length,
     summary,
     commits,
+    humanCommits,
+    agentCommits,
+    humanSummary: summary,
+    agentSummary,
     ticketGroups,
     content,
   };

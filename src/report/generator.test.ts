@@ -15,6 +15,7 @@ function makeCommit(overrides: Partial<NormalizedCommit> = {}): NormalizedCommit
     diff: '',
     diffTruncated: false,
     category: 'feat',
+    isAgentAssisted: false,
     ...overrides,
   };
 }

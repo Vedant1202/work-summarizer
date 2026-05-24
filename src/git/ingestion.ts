@@ -12,6 +12,7 @@ export interface Commit {
   author: string;
   timestamp: string;
   message: string;
+  coAuthors: string[];
   changedFiles: string[];
   diffStat: DiffStat;
   rawDiff: string;
@@ -72,13 +73,22 @@ export function ingestCommits(config: Config, overrides: { since?: string; branc
   const commits: Commit[] = [];
 
   for (const sha of shaList) {
-    // Get commit metadata
+    // Get commit metadata (full body via %B to capture Co-Authored-By trailers)
     const meta = execSync(
-      `git show --no-patch --format="%an%x00%aI%x00%s" ${sha}`,
+      `git show --no-patch --format="%an%x00%aI%x00%B" ${sha}`,
       gitOpts
     ).trim();
 
-    const [author, timestamp, message] = meta.split(NULL_BYTE);
+    const [author, timestamp, body] = meta.split(NULL_BYTE);
+    // First line of body is the commit subject; rest may contain trailers
+    const bodyLines = (body ?? '').split('\n');
+    const message = bodyLines[0].trim();
+    const coAuthorEmails = bodyLines
+      .map((line) => {
+        const m = line.match(/^Co-Authored-By:\s*.+\s+<(.+)>$/i);
+        return m ? m[1].trim() : null;
+      })
+      .filter((email): email is string => email !== null);
 
     // Get stat summary (changed files + insertion/deletion counts)
     const statOutput = execSync(`git show --stat --no-patch ${sha}`, gitOpts);
@@ -95,6 +105,7 @@ export function ingestCommits(config: Config, overrides: { since?: string; branc
       author: author?.trim() ?? '',
       timestamp: timestamp?.trim() ?? '',
       message: message?.trim() ?? '',
+      coAuthors: coAuthorEmails,
       changedFiles,
       diffStat,
       rawDiff,

@@ -94,7 +94,7 @@ function groupCommitsByCategory(commits: NormalizedCommit[]): Map<CommitCategory
   return groups;
 }
 
-export function buildSummarizationPrompt(commits: NormalizedCommit[], length: SummaryLength, templatePath?: string): string {
+export function buildSummarizationPrompt(commits: NormalizedCommit[], length: SummaryLength, templatePath?: string, contextNote?: string): string {
   const groups = groupCommitsByCategory(commits);
 
   const orderedSections = CATEGORY_ORDER
@@ -115,6 +115,11 @@ export function buildSummarizationPrompt(commits: NormalizedCommit[], length: Su
     commitBlock,
     summaryLength: length,
     commitCount: commits.length,
+    contextNote: contextNote ?? '',
+    hasAgentCommits: commits.some((c) => c.isAgentAssisted),
+    hasHumanCommits: commits.some((c) => !c.isAgentAssisted),
+    agentCommitCount: commits.filter((c) => c.isAgentAssisted).length,
+    humanCommitCount: commits.filter((c) => !c.isAgentAssisted).length,
     commits: commits.map((c) => ({
       sha7: c.sha.slice(0, 7),
       message: c.message,
@@ -123,6 +128,8 @@ export function buildSummarizationPrompt(commits: NormalizedCommit[], length: Su
       deletions: c.diffStat.deletions,
       diff: c.diff,
       changedFiles: c.changedFiles,
+      isAgentAssisted: c.isAgentAssisted,
+      agentName: c.agentName ?? '',
     })),
   };
 
@@ -140,11 +147,12 @@ export async function summarizeCommits(
   commits: NormalizedCommit[],
   summaryLength: SummaryLength,
   templatePath?: string,
+  contextNote?: string,
 ): Promise<string> {
   if (commits.length === 0) {
     return 'No commits found in the specified time window.';
   }
-  const prompt = buildSummarizationPrompt(commits, summaryLength, templatePath);
+  const prompt = buildSummarizationPrompt(commits, summaryLength, templatePath, contextNote);
   return provider.rawPrompt(prompt);
 }
 

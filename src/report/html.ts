@@ -209,12 +209,26 @@ export function buildHtml(report: Report): string {
       </div>
     </header>
 
+    ${report.agentSummary ? `
+    <div class="card">
+      <h2>👤 Human Commits</h2>
+      <div class="summary-body">
+        ${summaryHtml}
+      </div>
+    </div>
+
+    <div class="card agent-summary">
+      <h2>🤖 Agent-Assisted Commits</h2>
+      <div class="summary-body">
+        ${renderSummaryAsHtml(report.agentSummary)}
+      </div>
+    </div>` : `
     <div class="card">
       <h2>Summary</h2>
       <div class="summary-body">
         ${summaryHtml}
       </div>
-    </div>
+    </div>`}
 
     <div class="card">
       <h2>Commits by Category</h2>

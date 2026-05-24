@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { categorizeCommit, normalizeDiff } from './normalizer';
+import { categorizeCommit, normalizeDiff, classifyAgent } from './normalizer';
 import { Commit } from './ingestion';
 
 describe('categorizeCommit', () => {
@@ -36,6 +36,7 @@ describe('normalizeDiff', () => {
       author: 'Test User',
       timestamp: '2024-01-01T00:00:00Z',
       message: 'feat: test commit',
+      coAuthors: [],
       changedFiles: ['src/index.ts'],
       diffStat: { insertions: 10, deletions: 2 },
       rawDiff: 'diff --git a/src/index.ts b/src/index.ts\n+new line\n',
@@ -63,5 +64,75 @@ describe('normalizeDiff', () => {
 
   it('returns empty array for empty input', () => {
     expect(normalizeDiff([])).toHaveLength(0);
+  });
+
+  it('marks agent-assisted commits and passes isAgentAssisted through normalization', () => {
+    const commit = makeCommit({ coAuthors: ['noreply@anthropic.com'] });
+    const result = normalizeDiff([commit]);
+    expect(result[0].isAgentAssisted).toBe(true);
+    expect(result[0].agentName).toBe('Claude Code');
+  });
+
+  it('marks human commits as not agent-assisted', () => {
+    const commit = makeCommit();
+    const result = normalizeDiff([commit]);
+    expect(result[0].isAgentAssisted).toBe(false);
+    expect(result[0].agentName).toBeUndefined();
+  });
+});
+
+describe('classifyAgent', () => {
+  function makeBaseCommit(overrides: Partial<Commit> = {}): Commit {
+    return {
+      sha: 'abc1234',
+      author: 'Dev User',
+      timestamp: '2024-01-01T00:00:00Z',
+      message: 'test commit',
+      coAuthors: [],
+      changedFiles: [],
+      diffStat: { insertions: 0, deletions: 0 },
+      rawDiff: '',
+      ...overrides,
+    };
+  }
+
+  it.each([
+    ['noreply@anthropic.com', 'Claude Code'],
+    ['noreply@github.com', 'GitHub Copilot'],
+    ['noreply@cursor.com', 'Cursor'],
+    ['noreply@openai.com', 'Codex'],
+  ])('detects %s as %s via Co-Authored-By email', (email, expectedAgent) => {
+    const commit = makeBaseCommit({ coAuthors: [email] });
+    const result = classifyAgent(commit);
+    expect(result.isAgentAssisted).toBe(true);
+    expect(result.agentName).toBe(expectedAgent);
+  });
+
+  it('detects Aider via author name suffix', () => {
+    const commit = makeBaseCommit({ author: 'vedant (aider)' });
+    const result = classifyAgent(commit);
+    expect(result.isAgentAssisted).toBe(true);
+    expect(result.agentName).toBe('Aider');
+  });
+
+  it('returns false for a regular human commit with no co-authors', () => {
+    const commit = makeBaseCommit();
+    const result = classifyAgent(commit);
+    expect(result.isAgentAssisted).toBe(false);
+    expect(result.agentName).toBeUndefined();
+  });
+
+  it('returns false for an unknown co-author email', () => {
+    const commit = makeBaseCommit({ coAuthors: ['bot@someunknownservice.com'] });
+    const result = classifyAgent(commit);
+    expect(result.isAgentAssisted).toBe(false);
+    expect(result.agentName).toBeUndefined();
+  });
+
+  it('handles uppercase email domains case-insensitively', () => {
+    const commit = makeBaseCommit({ coAuthors: ['noreply@ANTHROPIC.COM'] });
+    const result = classifyAgent(commit);
+    expect(result.isAgentAssisted).toBe(true);
+    expect(result.agentName).toBe('Claude Code');
   });
 });

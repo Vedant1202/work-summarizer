@@ -11,6 +11,8 @@ export interface NormalizedCommit {
   diff: string;
   diffTruncated: boolean;
   category: CommitCategory;
+  isAgentAssisted: boolean;
+  agentName?: string;
 }
 
 const NOISE_FILE_PATTERNS = [
@@ -41,6 +43,24 @@ const KEYWORD_RULES: Array<{ pattern: RegExp; category: CommitCategory }> = [
   { pattern: /\b(perf|performance|speed|optimize|faster|latency|throughput|cache)\b/i, category: 'perf' },
   { pattern: /\b(test|spec|coverage|unit test|integration test|e2e)\b/i, category: 'test' },
 ];
+
+const AGENT_EMAIL_MAP: Record<string, string> = {
+  'noreply@anthropic.com': 'Claude Code',
+  'noreply@github.com': 'GitHub Copilot',
+  'noreply@cursor.com': 'Cursor',
+  'noreply@openai.com': 'Codex',
+};
+
+export function classifyAgent(commit: Commit): { isAgentAssisted: boolean; agentName?: string } {
+  for (const email of commit.coAuthors) {
+    const agent = AGENT_EMAIL_MAP[email.toLowerCase()];
+    if (agent) return { isAgentAssisted: true, agentName: agent };
+  }
+  if (commit.author.toLowerCase().includes('(aider)')) {
+    return { isAgentAssisted: true, agentName: 'Aider' };
+  }
+  return { isAgentAssisted: false };
+}
 
 export function categorizeCommit(message: string): CommitCategory {
   const match = message.match(CONVENTIONAL_PREFIX);
@@ -129,6 +149,8 @@ export function normalizeDiff(commits: Commit[], config?: Pick<Config, 'excludeP
         diffTruncated = true;
       }
 
+      const agentClassification = classifyAgent(commit);
+
       return {
         sha: commit.sha,
         author: commit.author,
@@ -139,6 +161,7 @@ export function normalizeDiff(commits: Commit[], config?: Pick<Config, 'excludeP
         diff,
         diffTruncated,
         category,
+        ...agentClassification,
       };
     })
     .filter((c): c is NormalizedCommit => c !== null);
