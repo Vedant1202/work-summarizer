@@ -170,7 +170,7 @@ export async function runCommand(options: RunOptions): Promise<void> {
     const linearKey = config.integrations?.linear?.apiKey;
     if (!linearKey) {
       console.warn('Warning: --with-linear set but LINEAR_API_KEY is not configured. Skipping Linear enrichment.');
-      console.warn('  Set it via: export LINEAR_API_KEY=<key>  or  daily-summary config set integrations.linear.apiKey <key>');
+      console.warn('  Set it via: export LINEAR_API_KEY=<key>  or  work-summary config set integrations.linear.apiKey <key>');
     } else {
       console.log('Fetching Linear issue data...');
       try {

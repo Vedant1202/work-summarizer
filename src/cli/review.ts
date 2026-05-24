@@ -15,7 +15,7 @@ function askQuestion(question: string): Promise<string> {
 }
 
 export async function openInEditor(content: string): Promise<string> {
-  const tmpFile = path.join(os.tmpdir(), `daily-summary-${Date.now()}.md`);
+  const tmpFile = path.join(os.tmpdir(), `work-summary-${Date.now()}.md`);
   fs.writeFileSync(tmpFile, content, 'utf8');
 
   const editor = process.env.EDITOR || process.env.VISUAL || 'vi';

@@ -17,8 +17,8 @@ import { uiCommand } from './commands/ui';
 const program = new Command();
 
 program
-  .name('daily-summary')
-  .description('Generate daily stand-up summaries from git commits')
+  .name('work-summary')
+  .description('Generate work summaries from git commits')
   .version('0.1.0');
 
 program
@@ -58,7 +58,7 @@ const configCmd = program
 
 configCmd
   .command('init')
-  .description('Interactive setup wizard — saves API keys to ~/.daily-summary/.env')
+  .description('Interactive setup wizard — saves API keys to ~/.work-summary/.env')
   .action(async () => { await configInitCommand(); });
 
 configCmd
@@ -134,7 +134,7 @@ docsCmd
     const docsRepoConfig = config.integrations?.docsRepo ?? {};
 
     // Find the doc-tasks file for the given date
-    const docTasksDir = path.join(os.homedir(), '.daily-summary', 'doc-tasks');
+    const docTasksDir = path.join(os.homedir(), '.work-summary', 'doc-tasks');
     const mdFile = path.join(docTasksDir, `${date}-${repoName}.md`);
     const jsonFile = path.join(docTasksDir, `${date}-${repoName}.json`);
 
@@ -151,7 +151,7 @@ docsCmd
       tasks = [];
     } else {
       console.error(`No doc-tasks file found for ${date}/${repoName}.`);
-      console.error(`Run 'daily-summary docs' first to generate tasks.`);
+      console.error(`Run 'work-summary docs' first to generate tasks.`);
       process.exit(1);
     }
 
@@ -160,7 +160,7 @@ docsCmd
       const repoPath = path.resolve(docsRepoConfig.path ?? '');
       if (!docsRepoConfig.path || !fs.existsSync(repoPath)) {
         console.error('Docs repo path is not set or does not exist.');
-        console.error('  daily-summary config set integrations.docsRepo.path /path/to/docs-repo');
+        console.error('  work-summary config set integrations.docsRepo.path /path/to/docs-repo');
         process.exit(1);
       }
       const outputSubdir = docsRepoConfig.outputDir ?? 'doc-tasks';

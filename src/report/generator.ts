@@ -109,8 +109,8 @@ function buildDocsImpactSection(signals: DocSignal[], mintlifyConfigured: boolea
   });
 
   const cta = mintlifyConfigured
-    ? 'Run `daily-summary mintlify trigger` to deploy.'
-    : 'Run `daily-summary docs` for a full interactive review.';
+    ? 'Run `work-summary mintlify trigger` to deploy.'
+    : 'Run `work-summary docs` for a full interactive review.';
 
   return `\n---\n\n## Docs Impact\n\n_${signals.length} area${signals.length !== 1 ? 's' : ''} may need documentation updates._\n\n| Severity | Category | File | Signal |\n|----------|----------|------|--------|\n${rows.join('\n')}\n\n> ${cta}\n`;
 }

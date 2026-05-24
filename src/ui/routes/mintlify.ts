@@ -18,7 +18,7 @@ router.get('/status/:statusId', async (req, res) => {
   const projectId = config.integrations?.mintlify?.projectId ?? 'unknown';
 
   if (!apiKey) {
-    res.status(400).json({ error: 'MINTLIFY_API_KEY is not configured. Set it via: daily-summary config set integrations.mintlify.apiKey <key>' });
+    res.status(400).json({ error: 'MINTLIFY_API_KEY is not configured. Set it via: work-summary config set integrations.mintlify.apiKey <key>' });
     return;
   }
 
@@ -40,7 +40,7 @@ router.post('/trigger', async (req, res) => {
   const projectId = config.integrations?.mintlify?.projectId;
 
   if (!apiKey || !projectId) {
-    res.status(400).json({ error: 'Mintlify API key and project ID must be configured. Run: daily-summary config set integrations.mintlify.apiKey <key>' });
+    res.status(400).json({ error: 'Mintlify API key and project ID must be configured. Run: work-summary config set integrations.mintlify.apiKey <key>' });
     return;
   }
 
@@ -108,7 +108,7 @@ router.post('/summary', async (req, res) => {
   const config = loadConfig();
 
   if (!config.llm.apiKey || !config.llm.model) {
-    res.status(400).json({ error: 'GEMINI_API_KEY and GEMINI_MODEL must be configured. Run: daily-summary config init' });
+    res.status(400).json({ error: 'GEMINI_API_KEY and GEMINI_MODEL must be configured. Run: work-summary config init' });
     return;
   }
 

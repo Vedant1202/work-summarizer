@@ -268,7 +268,7 @@ export async function docsCommand(options: DocsOptions): Promise<void> {
       console.warn('  export LINEAR_API_KEY=<key>');
     } else if (!teamId) {
       console.warn('\nWarning: --create-issues requires a Linear team ID. Configure it with:');
-      console.warn('  daily-summary config set integrations.linear.teamId <team-id>');
+      console.warn('  work-summary config set integrations.linear.teamId <team-id>');
     } else {
       console.log('\nCreating Linear issues for accepted tasks...');
       const linearClient = new LinearIntegrationClient(linearKey);

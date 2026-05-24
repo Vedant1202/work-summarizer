@@ -5,7 +5,7 @@ import os from 'os';
 import { execSync } from 'child_process';
 import { scheduleCommand } from '../../cli/commands/schedule';
 
-const PLIST_LABEL = 'com.daily-summary';
+const PLIST_LABEL = 'com.work-summary';
 const PLIST_PATH = path.join(os.homedir(), 'Library', 'LaunchAgents', `${PLIST_LABEL}.plist`);
 
 function parsePlistTime(content: string): string | null {

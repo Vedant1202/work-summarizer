@@ -5,7 +5,7 @@ import { execSync } from 'child_process';
 import { DocTask, DocExportFormat } from './types';
 import { DocsRepoConfig } from '../config/types';
 
-const DOC_TASKS_DIR = path.join(os.homedir(), '.daily-summary', 'doc-tasks');
+const DOC_TASKS_DIR = path.join(os.homedir(), '.work-summary', 'doc-tasks');
 
 const SEVERITY_LABEL: Record<string, string> = {
   high: 'HIGH',
@@ -90,7 +90,7 @@ export function pushToDocsRepo(
 ): string {
   if (!docsRepoConfig.path) {
     throw new Error(
-      'Docs repo path is not configured. Set it with:\n  daily-summary config set integrations.docsRepo.path /path/to/docs-repo',
+      'Docs repo path is not configured. Set it with:\n  work-summary config set integrations.docsRepo.path /path/to/docs-repo',
     );
   }
 
