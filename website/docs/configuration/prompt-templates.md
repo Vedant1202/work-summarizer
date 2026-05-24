@@ -47,6 +47,11 @@ Templates are rendered with [Mustache](https://mustache.github.io/). The followi
 |---|---|---|
 | `{{summaryLength}}` | string | `short`, `medium`, or `long` |
 | `{{commitCount}}` | number | Total number of commits in the scan |
+| `{{contextNote}}` | string | Optional note injected by the caller (e.g. `"These commits were made with AI agent assistance."` for the agent summary pass). Empty string when not set. |
+| `{{hasAgentCommits}}` | boolean | `true` when at least one commit in this slice was AI-agent-assisted |
+| `{{hasHumanCommits}}` | boolean | `true` when at least one commit in this slice was made by a human |
+| `{{agentCommitCount}}` | number | Number of agent-assisted commits in this slice |
+| `{{humanCommitCount}}` | number | Number of human-authored commits in this slice |
 
 ### Commit list
 
@@ -60,6 +65,8 @@ Iterate over raw commits with `{{#commits}}...{{/commits}}`:
 | `{{insertions}}` | number | Lines added |
 | `{{deletions}}` | number | Lines removed |
 | `{{diff}}` | string | Diff content (may be truncated for large commits) |
+| `{{isAgentAssisted}}` | boolean | `true` if this commit was co-authored by an AI agent |
+| `{{agentName}}` | string | Name of the detected agent (`Claude Code`, `GitHub Copilot`, `Cursor`, `Codex`, `Aider`), or empty string for human commits |
 
 ---
 

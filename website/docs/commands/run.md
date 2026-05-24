@@ -107,6 +107,36 @@ Opens the generated report in `$EDITOR`. Save and close to export; cancel by exi
 - `1aa6217` feat: add OAuth2 provider with PKCE (+145/-12)
 ```
 
+## AI Agent Detection
+
+`run` automatically detects commits made with AI coding assistants and separates them into a dedicated section of the report. Detection is **commit-level**: a commit is classified as agent-assisted when it contains a `Co-Authored-By` trailer pointing to a known agent email, or when Aider's author-name convention is used.
+
+| Agent | Detection method |
+|---|---|
+| **Claude Code** | `Co-Authored-By: ... <noreply@anthropic.com>` |
+| **GitHub Copilot** | `Co-Authored-By: ... <noreply@github.com>` |
+| **Cursor** | `Co-Authored-By: ... <noreply@cursor.com>` |
+| **Codex** | `Co-Authored-By: ... <noreply@openai.com>` |
+| **Aider** | Author name contains `(aider)` |
+
+When agent-assisted commits are found, the report renders two summary sections — each with its own LLM-generated summary — instead of one unified section:
+
+```markdown
+## 👤 Human Commits
+
+- Added OAuth2 provider support with PKCE flow
+- Fixed null pointer in search endpoint
+
+---
+
+## 🤖 Agent-Assisted Commits
+
+- Scaffolded Linear integration client and response types
+- Generated unit tests for the normalizer module
+```
+
+When no agent commits are present, the report is identical to the single-section format above.
+
 ## With Linear — "By Issue" Section
 
 When `--with-linear` is set, the report includes a **By Issue** section that groups commits by Linear ticket. Issue refs are extracted from:
