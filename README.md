@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-online-6366f1)](https://Vedant1202.github.io/work-summarizer/)
 
-`work-summarizer` is a TypeScript CLI that turns local Git history into polished work summaries. Point it at any repo, choose a time window, and get a structured, AI-generated report — categorised by feature, fix, refactor, test, chore, and more.
+`work-summarizer` is a TypeScript CLI that turns local Git history into polished work summaries. Just oint it at any repo, choose a time window, and get a structured, AI-generated report — categorised by feature, fix, refactor, test, chore, and more.
 
 **[Full documentation →](https://Vedant1202.github.io/work-summarizer/)**
 
