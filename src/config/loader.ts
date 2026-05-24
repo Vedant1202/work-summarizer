@@ -3,9 +3,9 @@ import path from 'path';
 import os from 'os';
 import { Config, ConfigScope, IntegrationsConfig } from './types';
 
-export const GLOBAL_CONFIG_DIR = path.join(os.homedir(), '.daily-summary');
+export const GLOBAL_CONFIG_DIR = path.join(os.homedir(), '.work-summary');
 const GLOBAL_CONFIG_FILE = path.join(GLOBAL_CONFIG_DIR, 'config.json');
-const LOCAL_CONFIG_FILE = '.daily-summary.json';
+const LOCAL_CONFIG_FILE = '.work-summary.json';
 export const GLOBAL_ENV_FILE = path.join(GLOBAL_CONFIG_DIR, '.env');
 
 const DEFAULTS: Config = {
@@ -81,7 +81,7 @@ function loadEnvFile(envPath: string): void {
 }
 
 export function loadConfig(): Config {
-  // Global ~/.daily-summary/.env loaded first (lowest priority)
+  // Global ~/.work-summary/.env loaded first (lowest priority)
   loadEnvFile(path.join(GLOBAL_CONFIG_DIR, '.env'));
   // Project-local .env overrides global (higher priority, won't overwrite already-set vars)
   loadEnvFile(path.join(process.cwd(), '.env'));

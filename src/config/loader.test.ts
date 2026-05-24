@@ -8,7 +8,7 @@ describe('writeEnvKey', () => {
   let tmpFile: string;
 
   beforeEach(() => {
-    tmpFile = path.join(os.tmpdir(), `daily-summary-test-${Date.now()}.env`);
+    tmpFile = path.join(os.tmpdir(), `work-summary-test-${Date.now()}.env`);
   });
 
   afterEach(() => {
