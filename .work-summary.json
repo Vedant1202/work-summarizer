@@ -1,0 +1,5 @@
+{
+  "llm": {
+    "promptTemplate": "/tmp/test-prompt.mustache"
+  }
+}
