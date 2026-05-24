@@ -1,3 +1,9 @@
+## [1.3.2](https://github.com/Vedant1202/work-summarizer/compare/v1.3.1...v1.3.2) (2026-05-24)
+
+
+### Bug Fixes
+
+* read version from package.json instead of hardcoding ([7bed75c](https://github.com/Vedant1202/work-summarizer/commit/7bed75c6d0b69dacaa48330bb15fa7a1fde42a63))
 ## [1.3.1](https://github.com/Vedant1202/work-summarizer/compare/v1.3.0...v1.3.1) (2026-05-24)
 # [1.3.0](https://github.com/Vedant1202/work-summarizer/compare/v1.2.0...v1.3.0) (2026-05-24)
 # [1.2.0](https://github.com/Vedant1202/work-summarizer/compare/v1.1.3...v1.2.0) (2026-05-24)
