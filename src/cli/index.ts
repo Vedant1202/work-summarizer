@@ -16,10 +16,13 @@ import { uiCommand } from './commands/ui';
 
 const program = new Command();
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { version } = require('../../package.json') as { version: string };
+
 program
   .name('work-summary')
   .description('Generate work summaries from git commits')
-  .version('0.1.0');
+  .version(version);
 
 program
   .command('run')
